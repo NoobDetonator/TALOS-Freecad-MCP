@@ -9,9 +9,12 @@ import FreeCADGui as Gui
 
 project_root = os.environ.get("AICAD_PROJECT_ROOT")
 if project_root:
-    source_path = str(Path(project_root) / "src")
-    if source_path not in sys.path:
-        sys.path.insert(0, source_path)
+    root_path = Path(project_root)
+    dependency_path = str(root_path / ".venv" / "Lib" / "site-packages")
+    source_path = str(root_path / "src")
+    for import_path in (dependency_path, source_path):
+        if import_path not in sys.path:
+            sys.path.insert(0, import_path)
 
 
 class AICadWorkbench(Workbench):

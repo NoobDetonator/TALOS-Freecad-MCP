@@ -2,7 +2,7 @@
 
 Base inicial de um ambiente CAD paramétrico controlável por chat interno e por MCP.
 
-O primeiro protótipo usa o FreeCAD como motor de modelagem, visualização e documento. A camada `aicad` concentra ferramentas determinísticas, permissões, integração com IA e o futuro canal MCP.
+O primeiro protótipo usa o FreeCAD como motor de modelagem, visualização e documento. A camada `aicad` concentra ferramentas determinísticas, permissões e a integração local com MCP.
 
 ## Estado atual
 
@@ -13,8 +13,9 @@ O primeiro protótipo usa o FreeCAD como motor de modelagem, visualização e do
 - `ToolRegistry` único para catálogo, schemas, validação e política de risco.
 - Chat e MCP conectados ao mesmo registro e ao mesmo adaptador.
 - Criação de caixa em transação validada e registrada no histórico de desfazer.
-- MCP com catálogo compartilhado e execução limitada a leitura nesta fase.
-- Testes unitários, teste transacional no FreeCADCmd e teste gráfico automatizado.
+- Ponte MCP–GUI autenticada, restrita ao loopback e executada pela thread Qt.
+- Mutações MCP pendentes até confirmação explícita no painel.
+- Testes unitários, teste transacional no FreeCADCmd e fluxo MCP gráfico automatizado.
 - Instalação reproduzível e isolada para Windows.
 
 ## Preparação
@@ -51,6 +52,22 @@ Leituras são executadas imediatamente. Criação e desfazer mostram o plano e s
 executam depois do clique em **Confirmar operação**. Texto livre não vira Python
 nem é enviado a um serviço externo.
 
+## MCP local
+
+Com o FreeCAD aberto por `scripts/iniciar.ps1`, o servidor MCP encontra a sessão
+gráfica por um registro efêmero no diretório local do usuário. Leituras percorrem
+a ponte e são executadas na thread principal do Qt. Para qualquer ferramenta
+`modify`, `request_cad_tool` retorna `pending_confirmation`; somente o clique no
+painel autoriza a execução.
+
+O mesmo `request_id`, nome e argumentos podem ser reenviados para consultar o
+resultado sem repetir a mutação. Reutilizar o ID com conteúdo diferente é
+rejeitado.
+
+O transporte escuta apenas em `127.0.0.1`, usa token aleatório por sessão,
+mensagens limitadas e timeout. O token não é gravado no repositório nem exibido
+em logs.
+
 ## Testes
 
 ```powershell
@@ -67,10 +84,9 @@ na fase atual. Quando um provedor realmente for integrado, a credencial será
 armazenada no cofre do Windows. A pasta `.runtime`, ambientes, downloads,
 arquivos CAD gerados e segredos são ignorados pelo Git.
 
-O MCP ainda não altera o documento: ele lista o catálogo compartilhado e pode
-invocar apenas ferramentas marcadas como leitura. Mutações serão liberadas só
-depois que a ponte com o processo gráfico puder pedir confirmação ao usuário na
-thread principal do Qt.
+O MCP não acessa o adaptador diretamente. Toda chamada passa pelo protocolo
+tipado, pela validação do `ToolRegistry`, pela fila da GUI e, nas mutações, pela
+confirmação visual.
 
 ## Arquitetura
 

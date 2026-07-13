@@ -14,8 +14,8 @@ roteiro de desenvolvimento e os critérios de aceite de cada etapa.
   `C:\Users\HRBASSIST55\Downloads\Ai-Cad Agents`.
 - **Ambiente validado:** Windows, FreeCAD portátil 1.1.1 e Python 3.11 fornecido
   pelo próprio pacote do FreeCAD.
-- **Última validação completa:** 14 testes unitários, `FREECAD_SMOKE_OK` e
-  `FREECAD_GUI_SMOKE_OK`.
+- **Última validação completa:** 45 testes unitários, `FREECAD_SMOKE_OK` e
+  `FREECAD_GUI_SMOKE_OK`, incluindo o fluxo MCP gráfico.
 
 O caminho local pode ser diferente no computador de casa. Nenhum código deve
 depender do caminho absoluto acima; os scripts calculam a raiz do projeto.
@@ -85,11 +85,12 @@ O teste de integração comprova que `undo` remove o objeto criado.
 - O servidor MCP importa a mesma instância de registro usada pela interface em
   cada processo.
 - O MCP publica a lista de ferramentas do registro.
-- Existe uma entrada genérica apenas para ferramentas de leitura.
-- Mutações MCP são recusadas até existir uma ponte com a GUI que possa solicitar
-  confirmação ao usuário.
-- Um MCP iniciado fora do processo do FreeCAD ainda não consegue ler o documento
-  gráfico; a ponte entre processos é o próximo marco.
+- Leituras chegam ao documento gráfico por uma ponte local autenticada.
+- `request_cad_tool` aceita qualquer ferramenta registrada, mas mutações retornam
+  `pending_confirmation` até o usuário decidir no painel.
+- A fila e o timer do Qt garantem que o transporte nunca chame FreeCAD por uma
+  worker thread.
+- IDs repetidos com o mesmo conteúdo funcionam como polling idempotente.
 
 ## 4. Arquitetura atual
 
@@ -98,13 +99,15 @@ flowchart LR
     U["Usuário"] --> UI["Painel Qt / chat local"]
     UI --> P["Parser de comandos estruturados"]
     P --> R["ToolRegistry compartilhado"]
-    MCP["Servidor MCP"] --> R
+    MCP["Servidor MCP"] --> B["TCP loopback autenticado"]
+    B --> Q["Dispatcher na thread Qt"]
+    Q --> R
     R --> A["Camada application"]
     A --> F["FreeCadAdapter"]
     F --> D["Documento FreeCAD"]
     R --> V["Validação de schema e risco"]
     UI --> C["Confirmação de mutações"]
-    C --> R
+    C --> Q
 ```
 
 ### Responsabilidades por arquivo
@@ -117,7 +120,9 @@ flowchart LR
 | Instância compartilhada | `src/aicad/runtime.py` | Fornece o registro usado por chat e MCP |
 | Adaptador | `src/aicad/adapters/freecad_adapter.py` | Único limite para leitura e mutação do FreeCAD |
 | Interface | `src/aicad/ui/chat_panel.py` | Painel, histórico, confirmação e interação Qt |
-| MCP | `src/aicad/mcp_server.py` | Catálogo externo e acesso de leitura controlado |
+| Ponte local | `src/aicad/bridge/` | Protocolo, sessão, transporte e dispatcher |
+| Controlador Qt | `src/aicad/ui/bridge_controller.py` | Ciclo de vida e transferência para a thread GUI |
+| MCP | `src/aicad/mcp_server.py` | Catálogo e chamadas remotas controladas |
 | Workbench | `src/freecad/AiCad/InitGui.py` | Registro e ativação do Workbench |
 | Testes | `scripts/testar.ps1` | Testes unitários, FreeCADCmd e GUI real |
 
@@ -137,7 +142,7 @@ flowchart LR
 | --- | --- | --- |
 | M0 — Fundação | Concluído | Estrutura, Workbench, adaptador, registro e testes iniciais |
 | M1 — Chat local seguro | Concluído | Painel funcional, caixa transacional, confirmação e registro compartilhado |
-| M2 — Ponte MCP–GUI | Próximo | Comunicação local segura e execução na thread Qt |
+| M2 — Ponte MCP–GUI | Concluído | Comunicação local segura e execução na thread Qt |
 | M3 — Orquestrador de IA | Planejado | Modelo interpreta intenção e chama somente ferramentas registradas |
 | M4 — Modelagem mecânica básica | Planejado | Mais primitivas e operações paramétricas seguras |
 | M5 — Histórico e auditoria | Planejado | Registro persistente de planos, confirmações e resultados |
@@ -177,7 +182,19 @@ Entregas:
 - bloqueio explícito de mutações via MCP;
 - documentação de arquitetura e segurança atualizada.
 
-## 8. M2 — Ponte local MCP–GUI — próximo marco
+## 8. M2 — Ponte local MCP–GUI — concluído
+
+### Entregas
+
+- Protocolo `1.0` tipado e independente de FreeCAD, Qt e MCP.
+- Validação de toda request pelo mesmo `ToolRegistry`.
+- TCP restrito ao loopback, autenticado, limitado e com timeout.
+- Descoberta atômica da sessão no runtime local do usuário.
+- Dispatcher com fila única, thread dona, idempotência e expiração.
+- Controlador Qt responsável pelo servidor, timer e encerramento limpo.
+- Mutações pendentes e apresentadas uma por vez no painel.
+- Ferramenta MCP genérica para leitura, mutação e polling por request ID.
+- Smoke gráfico cobrindo leitura, confirmação, criação única e undo.
 
 ### Objetivo
 
@@ -199,8 +216,8 @@ principal do Qt e sem contornar a confirmação de mutações.
    - Preferir o mecanismo que permita autenticação local, timeout e encerramento
      limpo sem dependência pesada.
    - Nunca escutar em interfaces de rede externas.
-   - Usar uma capacidade aleatória de sessão em memória ou em `.runtime` com
-     permissões locais; nunca versioná-la.
+   - Usar uma capacidade aleatória no runtime local do usuário, com permissões
+     restritas; nunca gravá-la no repositório ou em logs.
 
 3. **Criar o dispatcher na GUI.**
    - A ponte pertence ao processo do FreeCAD.
@@ -227,10 +244,11 @@ principal do Qt e sem contornar a confirmação de mutações.
    - O servidor não importa FreeCAD nem Qt.
    - Erros de conexão são claros e não iniciam instalações automaticamente.
 
-7. **Adicionar observabilidade local.**
-   - Registrar request ID, ferramenta, risco, decisão do usuário e resultado.
-   - Não registrar credenciais nem conteúdo sensível por padrão.
-   - Logs ficam em `.runtime` e não entram no Git.
+7. **Preparar observabilidade local.**
+   - As respostas estruturadas preservam request ID, estado, resultado ou erro.
+   - A auditoria persistente de ferramenta, risco e decisão fica para o M5.
+   - Tokens de sessão e conteúdo sensível não entram em logs nem em arquivos do
+     repositório.
 
 ### Testes necessários para M2
 
@@ -249,10 +267,10 @@ principal do Qt e sem contornar a confirmação de mutações.
 
 ### Critério de aceite de M2
 
-M2 termina quando um cliente MCP consegue, com o FreeCAD aberto, ler o documento
-e solicitar uma caixa; a caixa só aparece após confirmação no painel, pode ser
-desfeita e todos os testes passam. Nenhum endpoint externo, Python arbitrário ou
-atalho direto ao adaptador é aceito.
+Critério atendido: com o FreeCAD aberto, o cliente lê o documento e solicita uma
+caixa; ela só aparece após confirmação no painel, pode ser desfeita e toda a
+suíte passa. Não existe endpoint externo, Python arbitrário ou atalho direto ao
+adaptador.
 
 ## 9. M3 — Orquestrador de IA
 
@@ -465,7 +483,7 @@ uma caixa pequena. Não usar documentos importantes para o primeiro teste manual
 
 - O parser atual não entende linguagem natural aberta.
 - Existe apenas uma mutação geométrica: criação de caixa.
-- O MCP isolado não alcança o documento da GUI sem a ponte de M2.
+- Chamadas MCP ao documento dependem de uma sessão gráfica do FreeCAD ativa.
 - `cad.validate_document` recalcula, embora seja classificado como leitura por não
   alterar intencionalmente a geometria.
 - `undo` atua sobre a última transação disponível; uma evolução futura deve
@@ -476,19 +494,28 @@ uma caixa pequena. Não usar documentos importantes para o primeiro teste manual
 - Não há persistência de conversas ou auditoria estruturada ainda.
 - Não há provedor de IA nem chave configurada.
 
-## 17. Decisões que ainda precisam ser tomadas
+## 17. Decisões técnicas
 
-1. Transporte da ponte: named pipe do Windows ou TCP loopback autenticado.
-2. Formato e versionamento do protocolo local.
-3. Política de aprovação para leituras potencialmente caras.
-4. Persistência e retenção do histórico de auditoria.
-5. Primeiro provedor de IA e interface mínima comum entre provedores.
-6. Estratégia para referências topológicas robustas.
-7. Ordem exata das ferramentas mecânicas após caixa e cilindro.
-8. Formato de distribuição do Workbench para usuários não desenvolvedores.
+### Definidas no M2
 
-Essas escolhas devem ser registradas em documentação antes de se tornarem
-dependências difíceis de reverter.
+1. **Protocolo local:** versão inicial `1.0`, com envelopes JSON tipados,
+   request ID, ferramenta, argumentos, origem, resultado ou erro categorizado.
+2. **Transporte:** TCP em loopback IPv4, host padrão `127.0.0.1`, porta efêmera,
+   token aleatório por sessão, framing com tamanho, limite e timeout.
+3. **Limite de thread:** o transporte não acessa FreeCAD. O controlador da GUI
+   enfileira toda execução para a thread principal do Qt.
+
+### Pendentes
+
+1. Política de aprovação para leituras potencialmente caras.
+2. Persistência e retenção do histórico de auditoria.
+3. Primeiro provedor de IA e interface mínima comum entre provedores.
+4. Estratégia para referências topológicas robustas.
+5. Ordem exata das ferramentas mecânicas após caixa e cilindro.
+6. Formato de distribuição do Workbench para usuários não desenvolvedores.
+
+As escolhas pendentes devem ser registradas antes de se tornarem dependências
+difíceis de reverter.
 
 ## 18. Prompt de retomada para outro chat
 
@@ -503,11 +530,12 @@ os arquivos da pasta docs, com atenção especial a docs/milestones.md. Verifiqu
 o Git, preserve mudanças existentes e execute scripts/testar.ps1 para confirmar
 a base.
 
-O marco funcional de referência é o commit f90fa66. O Workbench AI CAD, o chat
-local seguro, a criação transacional de caixa, undo e o ToolRegistry compartilhado
-já funcionam. O próximo marco recomendado é M2: a ponte local autenticada entre
-o MCP e a GUI do FreeCAD, com fila única, execução na thread principal do Qt e
-confirmação visual para mutações.
+O commit remoto de referência é f90fa66. Na árvore atual, o Workbench, o chat
+local seguro, a caixa transacional, undo, o ToolRegistry compartilhado e a ponte
+MCP–GUI autenticada já funcionam e estão testados. O próximo marco recomendado é
+M3: criar uma interface de provedor independente, manter chamadas estruturadas e
+usar exatamente a mesma fila, validação e confirmação já exercitadas pelo chat e
+pelo MCP.
 
 Mantenha o FreeCAD como adaptador, não crie execução arbitrária de Python, não
 salve credenciais no projeto e faça toda mutação de forma transacional, validada

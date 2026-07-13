@@ -1,0 +1,409 @@
+from __future__ import annotations
+
+from collections import deque
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
+import json
+import math
+from threading import Event, Lock, get_ident
+import time
+from typing import Any
+from uuid import UUID
+
+from aicad.bridge.protocol import (
+    BridgeError,
+    BridgeErrorCode,
+    BridgeRequest,
+    BridgeResponse,
+    BridgeResponseStatus,
+    validate_request_payload,
+)
+from aicad.core.tool_registry import ToolRegistry, ToolRisk
+
+
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 30.0
+DEFAULT_MAX_TRACKED_REQUESTS = 512
+
+
+@dataclass(slots=True)
+class _DispatchEntry:
+    request: BridgeRequest
+    fingerprint: str
+    risk: ToolRisk
+    deadline: float
+    response: BridgeResponse | None = None
+    event: Event = field(default_factory=Event)
+    executing: bool = False
+
+
+class BridgeDispatcher:
+    """Queue bridge requests for execution by one owning GUI thread."""
+
+    def __init__(
+        self,
+        registry: ToolRegistry,
+        *,
+        on_confirmation_requested: Callable[[BridgeRequest], None] | None = None,
+        request_timeout: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
+        max_tracked_requests: int = DEFAULT_MAX_TRACKED_REQUESTS,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        if (
+            isinstance(request_timeout, bool)
+            or not isinstance(request_timeout, (int, float))
+            or not math.isfinite(float(request_timeout))
+            or request_timeout <= 0
+        ):
+            raise ValueError("The dispatcher timeout must be positive and finite.")
+        if (
+            isinstance(max_tracked_requests, bool)
+            or not isinstance(max_tracked_requests, int)
+            or max_tracked_requests < 1
+        ):
+            raise ValueError("The dispatcher request limit must be a positive integer.")
+
+        self._registry = registry
+        self._on_confirmation_requested = on_confirmation_requested or (lambda _: None)
+        self._request_timeout = float(request_timeout)
+        self._max_tracked_requests = max_tracked_requests
+        self._clock = clock
+        self._owner_thread_id = get_ident()
+        self._lock = Lock()
+        self._queue: deque[UUID] = deque()
+        self._entries: dict[UUID, _DispatchEntry] = {}
+        self._active_confirmation: UUID | None = None
+        self._closed = False
+
+    @property
+    def queued_count(self) -> int:
+        with self._lock:
+            return sum(
+                1
+                for request_id in self._queue
+                if request_id in self._entries
+                and not self._is_terminal(self._entries[request_id].response)
+            )
+
+    @property
+    def active_confirmation(self) -> BridgeRequest | None:
+        with self._lock:
+            if self._active_confirmation is None:
+                return None
+            entry = self._entries.get(self._active_confirmation)
+            return entry.request if entry is not None else None
+
+    def submit(self, payload: Mapping[str, Any]) -> BridgeResponse:
+        """Validate and enqueue a transport request from any worker thread."""
+
+        request = validate_request_payload(payload, self._registry)
+        fingerprint = self._fingerprint(request)
+        now = self._clock()
+
+        with self._lock:
+            self._expire_locked(now)
+            existing = self._entries.get(request.request_id)
+            if existing is not None:
+                if existing.fingerprint != fingerprint:
+                    return self._error_response(
+                        request.request_id,
+                        BridgeResponseStatus.REJECTED,
+                        BridgeErrorCode.INVALID_REQUEST,
+                        "The request ID is already associated with different content.",
+                    )
+                if existing.response is not None:
+                    return existing.response
+                wait_event = existing.event
+                deadline = existing.deadline
+            else:
+                if self._closed:
+                    return self._error_response(
+                        request.request_id,
+                        BridgeResponseStatus.FAILED,
+                        BridgeErrorCode.GUI_UNAVAILABLE,
+                        "The GUI bridge dispatcher is closed.",
+                    )
+                if not self._make_room_locked():
+                    return self._error_response(
+                        request.request_id,
+                        BridgeResponseStatus.REJECTED,
+                        BridgeErrorCode.QUEUE_FULL,
+                        "The GUI bridge request queue is full.",
+                    )
+
+                risk = self._registry.get_spec(request.tool_name).risk
+                response = None
+                if risk is not ToolRisk.READ:
+                    response = BridgeResponse(
+                        request_id=request.request_id,
+                        status=BridgeResponseStatus.PENDING_CONFIRMATION,
+                    )
+                entry = _DispatchEntry(
+                    request=request,
+                    fingerprint=fingerprint,
+                    risk=risk,
+                    deadline=now + self._request_timeout,
+                    response=response,
+                )
+                self._entries[request.request_id] = entry
+                self._queue.append(request.request_id)
+                if response is not None:
+                    return response
+                wait_event = entry.event
+                deadline = entry.deadline
+
+        remaining = max(0.0, deadline - self._clock())
+        wait_event.wait(remaining)
+        with self._lock:
+            entry = self._entries.get(request.request_id)
+            if entry is None:
+                return self._error_response(
+                    request.request_id,
+                    BridgeResponseStatus.FAILED,
+                    BridgeErrorCode.GUI_UNAVAILABLE,
+                    "The GUI bridge request state is unavailable.",
+                )
+            if entry.response is None:
+                self._expire_entry_locked(entry)
+            return entry.response or self._error_response(
+                request.request_id,
+                BridgeResponseStatus.FAILED,
+                BridgeErrorCode.EXECUTION_ERROR,
+                "The GUI bridge request did not produce a response.",
+            )
+
+    def process_next(self) -> bool:
+        """Process one queued item; must be called periodically by the GUI thread."""
+
+        self._ensure_owner_thread()
+        request_to_execute: BridgeRequest | None = None
+        confirmation_to_show: BridgeRequest | None = None
+
+        with self._lock:
+            self._expire_locked(self._clock())
+            if self._active_confirmation is not None:
+                return False
+            while self._queue:
+                request_id = self._queue.popleft()
+                entry = self._entries.get(request_id)
+                if entry is None or self._is_terminal(entry.response):
+                    continue
+                if entry.risk is ToolRisk.READ:
+                    entry.executing = True
+                    request_to_execute = entry.request
+                    break
+                self._active_confirmation = request_id
+                confirmation_to_show = entry.request
+                break
+
+        if confirmation_to_show is not None:
+            try:
+                self._on_confirmation_requested(confirmation_to_show)
+            except Exception:
+                self._finish_with_error(
+                    confirmation_to_show.request_id,
+                    BridgeResponseStatus.FAILED,
+                    BridgeErrorCode.EXECUTION_ERROR,
+                    "The confirmation request could not be presented.",
+                )
+            return True
+
+        if request_to_execute is None:
+            return False
+        try:
+            result = self._registry.execute(
+                request_to_execute.tool_name,
+                request_to_execute.arguments,
+            )
+            response = BridgeResponse(
+                request_id=request_to_execute.request_id,
+                status=BridgeResponseStatus.COMPLETED,
+                result=result,
+            )
+        except Exception:
+            response = self._error_response(
+                request_to_execute.request_id,
+                BridgeResponseStatus.FAILED,
+                BridgeErrorCode.EXECUTION_ERROR,
+                "The CAD read operation failed.",
+            )
+        self._finish(request_to_execute.request_id, response)
+        return True
+
+    def resolve_confirmation(
+        self,
+        request_id: UUID,
+        *,
+        approved: bool,
+    ) -> BridgeResponse:
+        """Resolve and optionally execute the active mutation on the GUI thread."""
+
+        self._ensure_owner_thread()
+        with self._lock:
+            self._expire_locked(self._clock())
+            entry = self._entries.get(request_id)
+            if entry is None:
+                return self._error_response(
+                    request_id,
+                    BridgeResponseStatus.REJECTED,
+                    BridgeErrorCode.INVALID_REQUEST,
+                    "No matching bridge request is pending.",
+                )
+            if self._active_confirmation != request_id:
+                return entry.response or self._error_response(
+                    request_id,
+                    BridgeResponseStatus.REJECTED,
+                    BridgeErrorCode.INVALID_REQUEST,
+                    "The bridge request is not awaiting confirmation.",
+                )
+            if self._is_terminal(entry.response):
+                self._active_confirmation = None
+                return entry.response
+            if not approved:
+                response = self._error_response(
+                    request_id,
+                    BridgeResponseStatus.CANCELLED,
+                    BridgeErrorCode.CONFIRMATION_DENIED,
+                    "The CAD operation was cancelled by the user.",
+                )
+                entry.response = response
+                entry.event.set()
+                self._active_confirmation = None
+                return response
+            entry.executing = True
+            request = entry.request
+
+        try:
+            result = self._registry.execute(
+                request.tool_name,
+                request.arguments,
+                confirmed=True,
+            )
+            response = BridgeResponse(
+                request_id=request_id,
+                status=BridgeResponseStatus.COMPLETED,
+                result=result,
+            )
+        except Exception:
+            response = self._error_response(
+                request_id,
+                BridgeResponseStatus.FAILED,
+                BridgeErrorCode.EXECUTION_ERROR,
+                "The confirmed CAD operation failed.",
+            )
+        self._finish(request_id, response)
+        return response
+
+    def expire_requests(self) -> int:
+        self._ensure_owner_thread()
+        with self._lock:
+            return self._expire_locked(self._clock())
+
+    def close(self) -> None:
+        self._ensure_owner_thread()
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            self._queue.clear()
+            self._active_confirmation = None
+            for entry in self._entries.values():
+                if self._is_terminal(entry.response):
+                    continue
+                entry.response = self._error_response(
+                    entry.request.request_id,
+                    BridgeResponseStatus.CANCELLED,
+                    BridgeErrorCode.GUI_UNAVAILABLE,
+                    "The GUI bridge dispatcher was closed.",
+                )
+                entry.executing = False
+                entry.event.set()
+
+    def _finish(self, request_id: UUID, response: BridgeResponse) -> None:
+        with self._lock:
+            entry = self._entries.get(request_id)
+            if entry is None or self._is_terminal(entry.response):
+                return
+            entry.response = response
+            entry.executing = False
+            entry.event.set()
+            if self._active_confirmation == request_id:
+                self._active_confirmation = None
+
+    def _finish_with_error(
+        self,
+        request_id: UUID,
+        status: BridgeResponseStatus,
+        code: BridgeErrorCode,
+        message: str,
+    ) -> None:
+        self._finish(
+            request_id,
+            self._error_response(request_id, status, code, message),
+        )
+
+    def _expire_locked(self, now: float) -> int:
+        expired = 0
+        for entry in self._entries.values():
+            if (
+                not entry.executing
+                and entry.deadline <= now
+                and not self._is_terminal(entry.response)
+            ):
+                self._expire_entry_locked(entry)
+                expired += 1
+        return expired
+
+    def _expire_entry_locked(self, entry: _DispatchEntry) -> None:
+        entry.response = self._error_response(
+            entry.request.request_id,
+            BridgeResponseStatus.EXPIRED,
+            BridgeErrorCode.TIMEOUT,
+            "The bridge request expired before completion.",
+        )
+        entry.executing = False
+        entry.event.set()
+        if self._active_confirmation == entry.request.request_id:
+            self._active_confirmation = None
+
+    def _make_room_locked(self) -> bool:
+        if len(self._entries) < self._max_tracked_requests:
+            return True
+        for request_id, entry in tuple(self._entries.items()):
+            if self._is_terminal(entry.response):
+                del self._entries[request_id]
+                return True
+        return False
+
+    def _ensure_owner_thread(self) -> None:
+        if get_ident() != self._owner_thread_id:
+            raise RuntimeError("The bridge dispatcher must run on its owner thread.")
+
+    @staticmethod
+    def _fingerprint(request: BridgeRequest) -> str:
+        return json.dumps(
+            request.model_dump(mode="json"),
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+
+    @staticmethod
+    def _is_terminal(response: BridgeResponse | None) -> bool:
+        return (
+            response is not None
+            and response.status is not BridgeResponseStatus.PENDING_CONFIRMATION
+        )
+
+    @staticmethod
+    def _error_response(
+        request_id: UUID,
+        status: BridgeResponseStatus,
+        code: BridgeErrorCode,
+        message: str,
+    ) -> BridgeResponse:
+        return BridgeResponse(
+            request_id=request_id,
+            status=status,
+            error=BridgeError(code=code, message=message),
+        )

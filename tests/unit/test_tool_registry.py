@@ -69,3 +69,15 @@ def test_registry_requires_confirmation_for_modifications() -> None:
     with pytest.raises(ToolConfirmationRequired):
         registry.execute("cad.undo")
     assert registry.execute("cad.undo", confirmed=True) == {"undone": True}
+
+
+def test_registry_can_validate_a_call_without_a_handler() -> None:
+    registry = build_default_registry()
+
+    assert registry.validate_arguments(
+        "cad.create_box",
+        {"length": 10, "width": 20, "height": 30},
+    ) == {"length": 10, "width": 20, "height": 30}
+
+    with pytest.raises(ToolInputError):
+        registry.validate_arguments("cad.undo", ["not", "an", "object"])

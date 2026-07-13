@@ -76,9 +76,25 @@ class ToolRegistry:
             raise ToolConfirmationRequired(
                 f"Tool requires explicit confirmation: {name}"
             )
-        checked_arguments = dict(arguments or {})
-        self._validate_arguments(spec, checked_arguments)
+        checked_arguments = self.validate_arguments(name, arguments)
         return self._handlers[name](**checked_arguments)
+
+    def validate_arguments(
+        self,
+        name: str,
+        arguments: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Validate one call without executing or requiring a connected handler."""
+
+        spec = self.get_spec(name)
+        if arguments is None:
+            checked_arguments: dict[str, Any] = {}
+        elif isinstance(arguments, Mapping):
+            checked_arguments = dict(arguments)
+        else:
+            raise ToolInputError(f"Arguments for {name} must be an object.")
+        self._validate_arguments(spec, checked_arguments)
+        return checked_arguments
 
     @staticmethod
     def _validate_arguments(spec: ToolSpec, arguments: dict[str, Any]) -> None:

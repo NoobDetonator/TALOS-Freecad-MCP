@@ -31,7 +31,7 @@ where = ["src"]
 include = ["aicad*"]
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-q --basetemp=.runtime/pytest"
 testpaths = ["tests/unit"]
 
 [tool.coverage.run]

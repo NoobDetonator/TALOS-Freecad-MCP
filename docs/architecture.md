@@ -17,9 +17,74 @@ A IA planeja, a camada de ferramentas autoriza, o FreeCAD executa e o validador 
    e executa mutações transacionais.
 6. **Runtime** — fornece a mesma instância do registro ao chat e ao MCP dentro de
    cada processo.
-7. **MCP** — publica o catálogo compartilhado. Enquanto não existe a ponte com a
-   GUI, permite somente a tentativa de execução de ferramentas de leitura.
+7. **MCP** — publica o catálogo compartilhado e envia leituras e solicitações de
+   mutação para a mesma fila segura da GUI.
 8. **Validação** — recomputa e verifica estados de erro e validade das formas.
+
+## Protocolo da ponte local
+
+O primeiro bloco do M2 define envelopes versionados em
+`aicad.bridge.protocol`, independentemente do transporte local. Uma request
+carrega `protocol_version`, `request_id`, `tool_name`, `arguments` e `source`.
+Uma response carrega um resultado estruturado, o estado
+`pending_confirmation` ou um erro categorizado.
+
+O envelope rejeita campos extras, versões desconhecidas e nomes que não tenham
+o formato de ferramenta CAD. Depois do parse, nome e argumentos passam pelo
+mesmo `ToolRegistry` usado pelo chat e pelo MCP. Essa validação não executa o
+handler e não substitui a confirmação exigida para ferramentas de risco.
+
+O protocolo não importa FreeCAD, Qt, transporte ou servidor MCP.
+
+## Transporte local da ponte
+
+O transporte inicial do M2 usa TCP em loopback IPv4, com `127.0.0.1` como host
+padrão. O listener recusa endereços externos e usa uma porta efêmera escolhida
+pelo sistema operacional. A escolha mantém o protótipo testável no Windows com
+a biblioteca padrão e sem acoplar o protocolo a uma API exclusiva do sistema.
+
+Cada sessão gera um token aleatório de alta entropia, mantido fora de logs e
+oculto na representação do endpoint. O token é comparado antes de qualquer
+request chegar ao handler. A descoberta do endpoint usa um registro efêmero no
+diretório de runtime local do usuário, fora do repositório.
+
+As mensagens usam JSON UTF-8 precedido por um tamanho de 32 bits, com limite de
+1 MiB e timeout configurável. JSON inválido, valores não finitos, frames vazios
+ou grandes demais são recusados. O servidor pode receber conexões em threads de
+transporte, mas o handler da GUI somente enfileira requests. Um timer do Qt
+transfere toda execução CAD para a thread principal.
+
+## Descoberta da sessão
+
+A GUI publica o endpoint autenticado como `bridge-session.json` no runtime do usuário. O
+registro contém versão do protocolo, ID da sessão, host, porta, token, PID e
+timestamp UTC. A escrita usa arquivo temporário, `fsync` e substituição atômica;
+o arquivo recebe permissões restritas conforme o suporte do sistema operacional.
+
+Diretório ou arquivo de sessão em symlink são recusados. No encerramento, a GUI
+remove o registro somente se o `session_id` ainda corresponder à sua sessão. Se
+outra instância já tiver publicado um endpoint novo, ele é preservado.
+
+`AICAD_RUNTIME_DIR` permite informar diretamente o diretório de descoberta.
+Sem essa variável, a pasta de runtime do usuário fornecida por `platformdirs` é
+usada. Ausência ou corrupção do registro produz erro controlado e nunca inicia
+instalações automaticamente.
+
+## Dispatcher da GUI
+
+O transporte entrega requests ao `BridgeDispatcher`, que pode ser chamado por
+workers, mas pertence à thread em que foi criado. `process_next`, confirmação,
+expiração e fechamento só podem ocorrer nessa thread, que é a thread principal
+do Qt na integração com o painel.
+
+Leituras aguardam na fila até `process_next` executá-las pelo `ToolRegistry`.
+Mutações retornam `pending_confirmation` sem executar e são apresentadas uma por
+vez. `resolve_confirmation` confere novamente estado e prazo antes de chamar o
+registro com autorização explícita.
+
+Repetir a mesma request com o mesmo ID funciona como polling idempotente. Reusar
+o ID com conteúdo diferente é rejeitado. Requests expiradas permanecem
+inexecutáveis, inclusive se uma confirmação antiga chegar depois do timeout.
 
 ## Regra de dependência
 
@@ -53,16 +118,18 @@ Para criar uma caixa, o adaptador:
 O teste de integração exige que a transação aumente a pilha de desfazer e que o
 objeto desapareça depois de `undo`.
 
-## Limite atual do MCP
+## Fluxo atual do MCP
 
-O servidor MCP e a GUI já constroem o registro pela mesma composição. Porém, o
-servidor MCP roda em outro processo e ainda não tem acesso seguro à thread Qt do
-FreeCAD. Por isso, mutações via MCP são recusadas mesmo que estejam no catálogo.
-Essa restrição evita criar um segundo caminho de execução sem confirmação.
+O servidor MCP e a GUI usam a mesma composição do registro em seus processos.
+`request_cad_tool` valida a chamada, descobre a sessão gráfica e envia o envelope
+para a fila pertencente à GUI.
+
+Leituras retornam o resultado executado na thread Qt. Mutações retornam
+`pending_confirmation`, aparecem no painel e só usam `confirmed=True` depois do
+clique do usuário. Repetir a request com o mesmo ID consulta o resultado.
 
 ## Próxima etapa técnica
 
-Criar uma ponte local autenticada entre o servidor MCP e o processo gráfico do
-FreeCAD, com fila única de comandos, execução na thread principal do Qt,
-solicitação de confirmação para riscos e retorno estruturado. Depois disso,
-integrar um provedor de IA sem mudar os schemas nem os handlers CAD.
+Integrar um provedor de IA sem mudar os schemas, os handlers CAD nem a trilha de
+confirmação. O orquestrador deverá produzir somente chamadas estruturadas e usar
+os mesmos limites já exercitados pelo chat e pelo MCP.
