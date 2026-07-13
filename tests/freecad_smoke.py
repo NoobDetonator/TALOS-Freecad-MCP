@@ -21,5 +21,9 @@ assert result["valid"] is True
 assert result["volume_mm3"] == 6000.0
 assert validation["valid"] is True, validation
 assert len(App.ActiveDocument.Objects) == 1
+assert App.ActiveDocument.UndoCount == 1
+undo_result = adapter.undo()
+assert undo_result["undone"] is True
+assert len(App.ActiveDocument.Objects) == 0
 print("FREECAD_SMOKE_OK")
 App.closeDocument("AICadSmokeTest")

@@ -1,0 +1,7 @@
+from importlib import import_module
+
+
+def test_freecad_facing_modules_import_without_freecad_installed() -> None:
+    import_module("aicad.adapters.freecad_adapter")
+    import_module("aicad.runtime")
+    import_module("aicad.ui.chat_panel")

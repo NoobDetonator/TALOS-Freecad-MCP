@@ -3,6 +3,10 @@ $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Runtime = Join-Path $ProjectRoot ".runtime"
 $VenvPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 $FreeCadCmdFile = Join-Path $Runtime "freecadcmd-exe.txt"
+$FreeCadExeFile = Join-Path $Runtime "freecad-exe.txt"
+$FreeCadModule = Join-Path $ProjectRoot "src\freecad\AiCad"
+$UserConfig = Join-Path $Runtime "test-user.cfg"
+$SystemConfig = Join-Path $Runtime "test-system.cfg"
 
 if (-not (Test-Path -LiteralPath $VenvPython)) {
     throw "Ambiente Python ausente. Execute .\scripts\setup.ps1."
@@ -17,7 +21,8 @@ try {
     if (Test-Path -LiteralPath $FreeCadCmdFile) {
         $FreeCadCmd = (Get-Content -Raw $FreeCadCmdFile).Trim()
         $env:AICAD_PROJECT_ROOT = $ProjectRoot
-        $freeCadOutput = & $FreeCadCmd -M (Join-Path $ProjectRoot "src\freecad") `
+        $freeCadOutput = & $FreeCadCmd -u $UserConfig -s $SystemConfig `
+            -M $FreeCadModule `
             -P (Join-Path $ProjectRoot "src") `
             (Join-Path $ProjectRoot "tests\freecad_smoke.py") 2>&1
         $freeCadOutput | ForEach-Object { Write-Host $_ }
@@ -25,6 +30,52 @@ try {
         if ($LASTEXITCODE -ne 0 -or $freeCadText -notmatch "FREECAD_SMOKE_OK") {
             throw "O teste de integracao com o FreeCAD falhou."
         }
+    }
+    if (Test-Path -LiteralPath $FreeCadExeFile) {
+        $FreeCadExe = (Get-Content -Raw $FreeCadExeFile).Trim()
+        $guiResult = Join-Path $Runtime "gui-smoke-result.txt"
+        $guiScreenshot = Join-Path $Runtime "gui-smoke-panel.png"
+        $guiLog = Join-Path $Runtime "gui-smoke.log"
+        $env:AICAD_GUI_RESULT = $guiResult
+        $env:AICAD_GUI_SCREENSHOT = $guiScreenshot
+        $arguments = @(
+            '-M', ('"' + $FreeCadModule + '"'),
+            '-P', ('"' + (Join-Path $ProjectRoot "src") + '"'),
+            '-u', ('"' + $UserConfig + '"'),
+            '-s', ('"' + $SystemConfig + '"'),
+            '--log-file', ('"' + $guiLog + '"'),
+            ('"' + (Join-Path $ProjectRoot "tests\freecad_gui_smoke.py") + '"')
+        )
+        $startedAt = Get-Date
+        $process = Start-Process -FilePath $FreeCadExe -ArgumentList $arguments -PassThru
+        $deadline = $startedAt.AddSeconds(30)
+        $guiText = $null
+        do {
+            if (Test-Path -LiteralPath $guiResult) {
+                $resultFile = Get-Item -LiteralPath $guiResult
+                if ($resultFile.LastWriteTime -ge $startedAt) {
+                    $guiText = (Get-Content -Raw -LiteralPath $guiResult).Trim()
+                    break
+                }
+            }
+            Start-Sleep -Milliseconds 250
+        } while ((Get-Date) -lt $deadline)
+        if (-not $guiText) {
+            if (-not $process.HasExited) {
+                $process.Kill()
+            }
+            Get-CimInstance Win32_Process |
+                Where-Object {
+                    $_.Name -eq "FreeCAD.exe" -and
+                    $_.CommandLine -like "*freecad_gui_smoke.py*"
+                } |
+                ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+            throw "O teste grafico do FreeCAD excedeu 30 segundos. Consulte $guiLog."
+        }
+        if ($guiText -ne "FREECAD_GUI_SMOKE_OK") {
+            throw "O teste grafico do FreeCAD falhou: $guiText"
+        }
+        Write-Host $guiText
     }
 } finally {
     Pop-Location

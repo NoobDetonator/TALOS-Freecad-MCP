@@ -1,0 +1,33 @@
+from __future__ import annotations
+
+from typing import Any, Protocol
+
+from aicad.core.tool_registry import ToolRegistry, build_default_registry
+
+
+class CadAdapter(Protocol):
+    """CAD boundary expected by the application layer."""
+
+    def get_document_summary(self) -> dict[str, Any]: ...
+
+    def get_selection(self) -> dict[str, Any]: ...
+
+    def create_box(
+        self, length: float, width: float, height: float, name: str = "AIBox"
+    ) -> dict[str, Any]: ...
+
+    def validate_document(self) -> dict[str, Any]: ...
+
+    def undo(self) -> dict[str, bool]: ...
+
+
+def build_cad_tool_registry(adapter: CadAdapter) -> ToolRegistry:
+    """Connect the provider-independent catalog to one explicit CAD adapter."""
+
+    registry = build_default_registry()
+    registry.bind("cad.get_document_summary", adapter.get_document_summary)
+    registry.bind("cad.get_selection", adapter.get_selection)
+    registry.bind("cad.create_box", adapter.create_box)
+    registry.bind("cad.validate_document", adapter.validate_document)
+    registry.bind("cad.undo", adapter.undo)
+    return registry

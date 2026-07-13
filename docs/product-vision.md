@@ -22,6 +22,23 @@ Peças mecânicas simples para impressão 3D e fabricação leve:
 6. Recalcular e validar.
 7. Confirmar ou reverter.
 
+## Estado da fase 1
+
+O primeiro corte funcional cobre o ciclo completo para uma caixa paramétrica:
+
+- o Workbench aparece e abre o painel de chat;
+- o pedido local é convertido em uma chamada estruturada;
+- o plano é mostrado antes da mutação;
+- a interface exige confirmação explícita;
+- a caixa é criada em transação, recalculada e validada;
+- a transação é reversível por `desfazer`;
+- a mesma lista de capacidades é usada pelo chat e pelo MCP;
+- mutações MCP continuam bloqueadas até existir confirmação pela GUI.
+
+Ainda não há interpretação por modelo de IA, credencial de provedor, exportação
+para fabricação ou ponte entre processos. Esses itens não são simulados pelo
+protótipo: permanecem explicitamente fora do corte atual.
+
 ## Diferenciais pretendidos
 
 - operação local e privada;

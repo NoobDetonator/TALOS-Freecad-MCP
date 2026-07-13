@@ -11,10 +11,12 @@ $FreeCadExe = (Get-Content -Raw $FreeCadExeFile).Trim()
 $env:AICAD_PROJECT_ROOT = $ProjectRoot
 $userConfig = Join-Path $Runtime "user.cfg"
 $systemConfig = Join-Path $Runtime "system.cfg"
+$modulePath = Join-Path $ProjectRoot "src\freecad\AiCad"
+$pythonPath = Join-Path $ProjectRoot "src"
 
 Start-Process -FilePath $FreeCadExe -ArgumentList @(
-    "-M", (Join-Path $ProjectRoot "src\freecad"),
-    "-P", (Join-Path $ProjectRoot "src"),
-    "-u", $userConfig,
-    "-s", $systemConfig
+    "-M", ('"' + $modulePath + '"'),
+    "-P", ('"' + $pythonPath + '"'),
+    "-u", ('"' + $userConfig + '"'),
+    "-s", ('"' + $systemConfig + '"')
 )

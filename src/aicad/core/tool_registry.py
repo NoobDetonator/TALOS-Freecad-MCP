@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+import math
+import re
+from collections.abc import Mapping
 from typing import Any, Callable
 
 
@@ -17,6 +20,14 @@ class ToolSpec:
     description: str
     risk: ToolRisk
     input_schema: dict[str, Any]
+
+
+class ToolInputError(ValueError):
+    """Raised before a handler runs when tool arguments do not match its schema."""
+
+
+class ToolConfirmationRequired(PermissionError):
+    """Raised when a risky tool is called without an explicit confirmation."""
 
 
 class ToolRegistry:
@@ -36,12 +47,91 @@ class ToolRegistry:
     def list_specs(self) -> tuple[ToolSpec, ...]:
         return tuple(self._specs.values())
 
-    def execute(self, name: str, **arguments: Any) -> Any:
+    def get_spec(self, name: str) -> ToolSpec:
         if name not in self._specs:
             raise KeyError(f"Unknown tool: {name}")
+        return self._specs[name]
+
+    def bind(self, name: str, handler: Callable[..., Any]) -> None:
+        self.get_spec(name)
+        if name in self._handlers:
+            raise ValueError(f"Tool already has a connected handler: {name}")
+        self._handlers[name] = handler
+
+    def has_handler(self, name: str) -> bool:
+        self.get_spec(name)
+        return name in self._handlers
+
+    def execute(
+        self,
+        name: str,
+        arguments: Mapping[str, Any] | None = None,
+        *,
+        confirmed: bool = False,
+    ) -> Any:
+        spec = self.get_spec(name)
         if name not in self._handlers:
             raise RuntimeError(f"Tool has no connected handler: {name}")
-        return self._handlers[name](**arguments)
+        if spec.risk is not ToolRisk.READ and not confirmed:
+            raise ToolConfirmationRequired(
+                f"Tool requires explicit confirmation: {name}"
+            )
+        checked_arguments = dict(arguments or {})
+        self._validate_arguments(spec, checked_arguments)
+        return self._handlers[name](**checked_arguments)
+
+    @staticmethod
+    def _validate_arguments(spec: ToolSpec, arguments: dict[str, Any]) -> None:
+        schema = spec.input_schema
+        if schema.get("type") != "object":
+            raise RuntimeError(f"Unsupported input schema for tool: {spec.name}")
+
+        properties = schema.get("properties", {})
+        required = set(schema.get("required", []))
+        missing = sorted(required - arguments.keys())
+        if missing:
+            raise ToolInputError(
+                f"Missing required arguments for {spec.name}: {', '.join(missing)}"
+            )
+
+        if schema.get("additionalProperties") is False:
+            unexpected = sorted(arguments.keys() - properties.keys())
+            if unexpected:
+                raise ToolInputError(
+                    f"Unexpected arguments for {spec.name}: {', '.join(unexpected)}"
+                )
+
+        for argument_name, value in arguments.items():
+            property_schema = properties.get(argument_name)
+            if property_schema is None:
+                continue
+            expected_type = property_schema.get("type")
+            if expected_type == "number":
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    raise ToolInputError(f"{argument_name} must be a number.")
+                if not math.isfinite(float(value)):
+                    raise ToolInputError(f"{argument_name} must be finite.")
+                minimum = property_schema.get("exclusiveMinimum")
+                if minimum is not None and value <= minimum:
+                    raise ToolInputError(
+                        f"{argument_name} must be greater than {minimum}."
+                    )
+            elif expected_type == "string":
+                if not isinstance(value, str):
+                    raise ToolInputError(f"{argument_name} must be a string.")
+                minimum_length = property_schema.get("minLength")
+                maximum_length = property_schema.get("maxLength")
+                pattern = property_schema.get("pattern")
+                if minimum_length is not None and len(value) < minimum_length:
+                    raise ToolInputError(f"{argument_name} is too short.")
+                if maximum_length is not None and len(value) > maximum_length:
+                    raise ToolInputError(f"{argument_name} is too long.")
+                if pattern is not None and re.fullmatch(pattern, value) is None:
+                    raise ToolInputError(f"{argument_name} has an invalid format.")
+            else:
+                raise RuntimeError(
+                    f"Unsupported argument type for {spec.name}: {expected_type}"
+                )
 
 
 def build_default_registry() -> ToolRegistry:
@@ -78,9 +168,14 @@ def build_default_registry() -> ToolRegistry:
                     "length": {"type": "number", "exclusiveMinimum": 0},
                     "width": {"type": "number", "exclusiveMinimum": 0},
                     "height": {"type": "number", "exclusiveMinimum": 0},
-                    "name": {"type": "string"},
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "[A-Za-z][A-Za-z0-9_-]*",
+                    },
                 },
-                "required": ["length", "width", "height", "name"],
+                "required": ["length", "width", "height"],
                 "additionalProperties": False,
             },
         )
