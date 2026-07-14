@@ -298,6 +298,130 @@ try:
     undone = registry.execute("cad.undo", confirmed=True)
     assert undone["undone"] is True
     assert fingerprint() == before_tube
+
+    # --- M7.4: gear phase, internal thread, mirror and feature patterns ---
+
+    phased = registry.execute(
+        "cad.create_spur_gear",
+        {
+            "teeth": 18,
+            "module": 2,
+            "thickness": 6,
+            "bore_diameter": 6,
+            "phase": 10,
+            "name": "EngrenagemFase",
+        },
+        confirmed=True,
+    )
+    assert phased["phase_deg"] == 10
+    assert abs(phased["mesh_phase_deg"] - 10) < 1e-9
+
+    registry.execute(
+        "cad.create_box",
+        {"length": 30, "width": 30, "height": 15, "name": "BlocoRosca"},
+        confirmed=True,
+    )
+    threaded = registry.execute(
+        "cad.create_threaded_hole",
+        {
+            "object": "BlocoRosca",
+            "diameter": 8,
+            "pitch": 1.25,
+            "x": 15,
+            "y": 15,
+            "depth": 10,
+            "name": "FuroRoscado",
+        },
+        confirmed=True,
+    )
+    threaded_volume = registry.execute(
+        "cad.measure_object", {"object": "FuroRoscado"}
+    )["volume_mm3"]
+    assert threaded_volume < 30 * 30 * 15
+    bore_removed = math.pi * (threaded["minor_diameter_mm"] / 2) ** 2 * 10
+    assert threaded_volume < 30 * 30 * 15 - 0.5 * bore_removed
+
+    shallow_refused = False
+    try:
+        registry.execute(
+            "cad.create_threaded_hole",
+            {
+                "object": "FuroRoscado",
+                "diameter": 8,
+                "pitch": 1.25,
+                "x": 5,
+                "y": 5,
+                "depth": 20,
+                "name": "RoscaFunda",
+            },
+            confirmed=True,
+        )
+    except ValueError:
+        shallow_refused = True
+    assert shallow_refused
+
+    registry.execute(
+        "cad.create_box",
+        {"length": 20, "width": 8, "height": 6, "name": "SuporteL"},
+        confirmed=True,
+    )
+    registry.execute(
+        "cad.transform_object",
+        {"object": "SuporteL", "x": 5},
+        confirmed=True,
+    )
+    mirrored = registry.execute(
+        "cad.mirror_object",
+        {"object": "SuporteL", "plane": "yz", "name": "SuporteEspelhado"},
+        confirmed=True,
+    )
+    assert abs(mirrored["volume_mm3"] - 20 * 8 * 6) < 1e-6
+
+    registry.execute(
+        "cad.create_box",
+        {"length": 4, "width": 4, "height": 10, "name": "Nervura"},
+        confirmed=True,
+    )
+    linear = registry.execute(
+        "cad.linear_pattern",
+        {
+            "object": "Nervura",
+            "count": 4,
+            "spacing": 12,
+            "direction": "x",
+            "name": "NervuraLinear",
+        },
+        confirmed=True,
+    )
+    assert abs(linear["volume_mm3"] - 4 * (4 * 4 * 10)) / (4 * 4 * 10 * 4) < 0.01
+
+    registry.execute(
+        "cad.create_box",
+        {"length": 6, "width": 3, "height": 4, "name": "Pa"},
+        confirmed=True,
+    )
+    registry.execute(
+        "cad.transform_object",
+        {"object": "Pa", "x": 20},
+        confirmed=True,
+    )
+    before_polar = fingerprint()
+    polar = registry.execute(
+        "cad.polar_pattern",
+        {
+            "object": "Pa",
+            "count": 6,
+            "angle": 360,
+            "axis": "z",
+            "name": "Rotor",
+        },
+        confirmed=True,
+    )
+    assert abs(polar["volume_mm3"] - 6 * (6 * 3 * 4)) / (6 * 3 * 4 * 6) < 0.01
+    assert registry.execute("cad.validate_document")["valid"] is True
+    undone = registry.execute("cad.undo", confirmed=True)
+    assert undone["undone"] is True
+    assert fingerprint() == before_polar
 finally:
     for document_name in list(App.listDocuments()):
         App.closeDocument(document_name)

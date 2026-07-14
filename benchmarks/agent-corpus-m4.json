@@ -39,6 +39,14 @@
     {"case_id":"sweep_path_pt","category":"m7_sketch","user_message":"Crie uma trajetória em L com cantos arredondados de 10 mm","expected_outcome":"tool_call","expected_tools":["cad.create_sweep_path"]},
     {"case_id":"sweep_path_en","category":"m7_sketch","user_message":"Create a sweep path through the points 0,0,0 and 0,0,40","expected_outcome":"tool_call","expected_tools":["cad.create_sweep_path"]},
     {"case_id":"sweep_pt","category":"m7_feature","user_message":"Varra o perfil circular ao longo da trajetória para fazer um tubo","expected_outcome":"tool_call","expected_tools":["cad.sweep_sketch"]},
-    {"case_id":"sweep_en","category":"m7_feature","user_message":"Sweep the profile along the path to make a curved tube","expected_outcome":"tool_call","expected_tools":["cad.sweep_sketch"]}
+    {"case_id":"sweep_en","category":"m7_feature","user_message":"Sweep the profile along the path to make a curved tube","expected_outcome":"tool_call","expected_tools":["cad.sweep_sketch"]},
+    {"case_id":"threaded_hole_pt","category":"m7_feature","user_message":"Faça um furo roscado M8 com passo 1.25 e 12 mm de profundidade","expected_outcome":"tool_call","expected_tools":["cad.create_threaded_hole"]},
+    {"case_id":"threaded_hole_en","category":"m7_feature","user_message":"Cut an M6 threaded hole 10 mm deep into the block","expected_outcome":"tool_call","expected_tools":["cad.create_threaded_hole"]},
+    {"case_id":"mirror_pt","category":"m7_pattern","user_message":"Espelhe o suporte no plano YZ","expected_outcome":"tool_call","expected_tools":["cad.mirror_object"]},
+    {"case_id":"mirror_en","category":"m7_pattern","user_message":"Mirror the bracket across the xz plane","expected_outcome":"tool_call","expected_tools":["cad.mirror_object"]},
+    {"case_id":"linear_pattern_pt","category":"m7_pattern","user_message":"Repita a nervura seis vezes a cada 20 mm no eixo X","expected_outcome":"tool_call","expected_tools":["cad.linear_pattern"]},
+    {"case_id":"linear_pattern_en","category":"m7_pattern","user_message":"Make a linear pattern of 4 copies spaced 15 mm","expected_outcome":"tool_call","expected_tools":["cad.linear_pattern"]},
+    {"case_id":"polar_pattern_pt","category":"m7_pattern","user_message":"Distribua a pá em um padrão polar de 8 ao redor do eixo Z","expected_outcome":"tool_call","expected_tools":["cad.polar_pattern"]},
+    {"case_id":"polar_pattern_en","category":"m7_pattern","user_message":"Make a polar pattern of 6 copies over 360 degrees","expected_outcome":"tool_call","expected_tools":["cad.polar_pattern"]}
   ]
 }

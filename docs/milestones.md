@@ -197,8 +197,8 @@ flowchart LR
 | M3 — Orquestrador de IA | Concluído | Contexto, seleção, loop seguro e planos reversíveis via chat/MCP |
 | M4 — Modelagem mecânica básica | Concluído | 18 capacidades mecânicas, receitas, seleção e visão |
 | M5 — Histórico e auditoria | Concluído | Ações, planos, aprovações, transações e exportação auditáveis |
-| M6 — MCP como produto | Em andamento | Exportação STL/STEP, validação básica e integração documentada com Claude Code, Codex e Cursor |
-| M7 — Cobertura de modelagem | Em andamento | Documentos, revolução, loft, helicoidal, rosca, furos com rebaixo/escareado, sweep, sketch constrangido e receitas novas |
+| M6 — MCP como produto | Concluído | Exportação STL/STEP, validação, integração com Claude Code/Codex/Cursor e fluxo pedido→arquivo de ponta a ponta |
+| M7 — Cobertura de modelagem | Concluído | Documentos, revolução, loft, helicoidal, roscas externa/interna, furos com rebaixo/escareado/roscados, sweep, sketch constrangido, fase de dentes, espelho, padrões e receitas novas |
 | M8 — Lançamento público | Planejado | Instalação simples, docs de usuário, demo gravada e repositório público |
 
 ## 6. M0 — Fundação — concluído
@@ -561,12 +561,21 @@ autorização se aplicaram, quais validações rodaram e quais transações real
 foram confirmadas, abortadas ou desfeitas. O bundle exportado contém a versão do
 schema e não contém chaves ou caminhos pessoais. Critério atendido.
 
-## 12. M6 — MCP como produto
+## 12. M6 — MCP como produto — concluído
 
 Objetivo: um usuário com Claude Code, Codex ou Cursor consegue, seguindo a
 documentação, conectar o agente ao FreeCAD e ir de um pedido em linguagem
 natural até um arquivo STL/STEP no disco — com confirmação visual em cada
 mutação.
+
+O critério de aceite foi fechado: a perna de exportação de ponta a ponta agora
+é exercitada de forma automatizada. O `tests/freecad_m6_smoke.py` modela uma
+peça do nicho por mutações (placa + padrão retangular de furos, gerando uma
+feature derivada) e exporta esse resultado derivado para STL e STEP no disco,
+conferindo tamanho e SHA-256, além de já cobrir sobrescrita negada, sobrescrita
+explícita e objeto inexistente. Somado ao teste real com agente externo de 14
+de julho de 2026 (trem de engrenagens 12:1 confirmado no painel), o fluxo
+"pedido em linguagem natural → arquivo fabricável" está completo.
 
 ### M6.1 — Exportação controlada — primeiro corte concluído
 
@@ -593,7 +602,7 @@ Pendente no M6.1:
 2. prévia do artefato antes de exportar;
 3. exportação de vários objetos ou do documento inteiro em um arquivo.
 
-### M6.2 — Integração com agentes externos — em andamento
+### M6.2 — Integração com agentes externos — concluído
 
 Entregue:
 
@@ -628,11 +637,10 @@ Entregue:
   pelo mesmo `request_id`, aviso ao usuário para decidir no painel e
   preferência por `submit_cad_plan` com rollback compensatório.
 
-Pendente:
-
-1. Fechar a perna de exportação do teste de ponta a ponta: o agente externo
-   já modelou uma montagem real com confirmações no painel; falta o mesmo
-   fluxo terminar em um STL/STEP no disco solicitado pelo usuário.
+Fechado: a perna de exportação de ponta a ponta agora é exercitada
+automaticamente pelo `tests/freecad_m6_smoke.py`, que modela uma peça do nicho
+por mutações (placa + padrão de furos → feature derivada) e exporta o resultado
+derivado para STL e STEP no disco com verificação de tamanho e SHA-256.
 
 ### M6.3 — Feedback para o agente
 
@@ -648,7 +656,7 @@ Com o FreeCAD aberto e o guia de integração em mãos, um agente externo real
 mutação confirmada no painel, auditada e reversível. A suíte cobre exportação
 com falha, sobrescrita negada e destino inválido.
 
-## 13. M7 — Cobertura de modelagem — em andamento
+## 13. M7 — Cobertura de modelagem — concluído
 
 Objetivo: ampliar o que um agente consegue modelar sozinho. Cada capacidade
 segue a regra de sempre — uma ferramenta por vez, com schema, validação,
@@ -732,18 +740,30 @@ Entregue (catálogo com 43 ferramentas):
   escareado (com volumes conferidos por fórmula), sketch constrangido, trajetória
   em L e sweep de tubo com undo.
 
-### M7.4 — Próximas capacidades
+### M7.4 — Fase de dentes, rosca interna, espelho e padrões — concluído
 
-Ordem sugerida, por valor para o nicho:
+Entregue (catálogo com 47 ferramentas):
 
-1. fase de dentes na engrenagem (alinhamento de engrenamento sem transform
-   manual);
-2. rosca interna (furo roscado);
-3. espelhamento e padrão linear/polar de features.
+- fase de dentes nas engrenagens: `cad.create_spur_gear` e
+  `cad.create_helical_gear` aceitam `phase` (graus, -360 a 360) que gira o
+  perfil antes da extrusão/torção e devolvem `mesh_phase_deg` (meio passo
+  angular) para engrenar duas engrenagens sem `cad.transform_object` manual;
+- `cad.create_threaded_hole`: furo cego com rosca interna ISO 60° cortado em
+  um sólido existente, reutilizando a matemática do perfil da rosca externa;
+  recusa passo grande demais, profundidade menor que um passo, mais de 64
+  voltas e profundidade maior que a altura do sólido;
+- `cad.mirror_object`: espelha um sólido por um plano global (xy/yz/xz);
+- `cad.linear_pattern` e `cad.polar_pattern`: repetem um sólido em array
+  linear (eixo x/y/z) ou polar (ao redor de x/y/z), fundindo as cópias em um
+  sólido derivado; ambos limitados a 64 instâncias;
+- corpus M4 cresce para 46 casos (recall 46/46, economia de schemas ~93%) com
+  tags PT das formas no imperativo ("espelhe", "repita"); o smoke M7 real cobre
+  fase, rosca interna (volume conferido e recusa de profundidade), espelho e
+  padrões linear/polar com undo.
 
-Critério de aceite: o corpus de benchmark cresce junto com o catálogo e o
-seletor mantém recall; cada ferramenta nova tem teste de falha e de undo, não
-apenas de sucesso.
+Critério de aceite atendido: o corpus de benchmark cresceu junto com o catálogo
+e o seletor manteve recall; cada ferramenta nova tem teste de falha e de undo,
+não apenas de sucesso.
 
 ## 13a. M8 — Lançamento público
 
@@ -926,20 +946,23 @@ os arquivos da pasta docs, com atenção especial a docs/milestones.md e
 docs/ai-agent-optimization-plan.md. Verifique o Git, preserve mudanças existentes
 e execute scripts/testar.ps1 para confirmar a base.
 
-Use como baseline o commit que contém a conclusão do M5 ou um posterior. Na árvore
-atual, M0 a M5 estão concluídos: Workbench e painel, ToolRegistry compartilhado
-com 39 ferramentas, ponte MCP–GUI, loop opcional DeepSeek, planos imutáveis e
-compostos, rollback, leituras mecânicas, edição, placa, furos/padrões, sketch/pad,
-booleanas, filete/chanfro, três receitas, seleção aguardada e captura visual já
-funcionam e estão testados. Histórico local versionado registra pedidos, planos,
-aprovações, resultados e transações com redaction e exportação confirmada.
+Use como baseline o commit que contém a conclusão do M7 ou um posterior. Na árvore
+atual, M0 a M7 estão concluídos: Workbench e painel, ToolRegistry compartilhado
+com 47 ferramentas, ponte MCP–GUI, loop opcional DeepSeek, planos imutáveis e
+compostos, rollback, leituras mecânicas, edição, placa, furos/padrões (incluindo
+rebaixo, escareado e roscados), sketch/pad constrangidos, revolução, loft, sweep,
+booleanas, filete/chanfro, engrenagens retas/helicoidais com fase, roscas
+externa/interna, espelho, padrões linear/polar, cinco receitas, exportação
+STL/STEP de ponta a ponta, seleção aguardada e captura visual já funcionam e
+estão testados. Histórico local versionado registra pedidos, planos, aprovações,
+resultados e transações com redaction e exportação confirmada.
 
 Estratégia vigente: MCP primeiro. O produto principal é o servidor MCP usado
 por agentes externos (Claude Code, Codex, Cursor); a IA embutida (DeepSeek,
 seletor, loop) está em modo manutenção e não recebe novas funcionalidades; não
-implemente suporte multi-provedor interno. O próximo marco é M6 — MCP como
-produto: exportação STL/STEP controlada, guia de integração com agentes
-externos e feedback visual/mensurável para o agente.
+implemente suporte multi-provedor interno. O próximo marco é M8 — Lançamento
+público: instalação simples, diagnóstico de versão, docs de usuário final,
+demo gravada e abertura do repositório.
 
 Mantenha o FreeCAD como adaptador, não crie execução arbitrária de Python, não
 salve credenciais no projeto e faça toda mutação de forma transacional, validada

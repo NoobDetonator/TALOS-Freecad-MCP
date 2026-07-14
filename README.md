@@ -16,17 +16,20 @@ chat local e um modo DeepSeek standalone opcional, ambos em manutenção.
 
 ## Estado atual
 
-Os marcos M0 a M5 estão implementados. O corte funcional atual oferece:
+Os marcos M0 a M7 estão implementados. O corte funcional atual oferece:
 
 - Workbench **AI CAD** e painel lateral testados no FreeCAD 1.1.1;
-- um único `ToolRegistry`, com 43 ferramentas, usado pelo chat e pelo MCP;
+- um único `ToolRegistry`, com 47 ferramentas, usado pelo chat e pelo MCP;
 - chat local determinístico e modo DeepSeek opcional;
 - leituras de documento, seleção, contexto, objetos, medidas, dependências,
   parâmetros editáveis e imagem da vista;
-- criação e edição de primitivas, placas, furos, padrões, furos com rebaixo e
-  escareado, sketch retangular e circular constrangidos, pad, booleanas, filetes
-  e chanfros;
+- criação e edição de primitivas, placas, furos, padrões, furos com rebaixo,
+  escareado e roscados, sketch retangular e circular constrangidos, pad,
+  booleanas, filetes e chanfros;
 - trajetórias linha/arco e varredura de perfil (sweep) ao longo delas;
+- engrenagens retas e helicoidais com fase de dentes para engrenamento,
+  roscas externas e internas;
+- espelhamento e padrões linear e polar de features;
 - cinco receitas confiáveis: placa de fixação, flange, pad retangular, eixo
   escalonado e polia plana;
 - planos de uma ou várias mutações com confirmação visual, validação e rollback;
@@ -134,14 +137,18 @@ Documentos e modelagem avançada (M7):
   destino `.FCStd` explícito no primeiro salvamento;
 - `cad.create_circular_sketch`, `cad.revolve_sketch` e `cad.loft_sketches`
   cobrem peças torneadas e transições entre perfis;
-- `cad.create_counterbore_hole` e `cad.create_countersunk_hole` abrem furos
-  com rebaixo cilíndrico (parafuso allen) e escareado cônico (cabeça chata);
+- `cad.create_counterbore_hole`, `cad.create_countersunk_hole` e
+  `cad.create_threaded_hole` abrem furos com rebaixo cilíndrico (parafuso
+  allen), escareado cônico (cabeça chata) e rosca interna ISO 60°;
 - `cad.create_sweep_path` cria trajetórias abertas de linhas e arcos e
   `cad.sweep_sketch` varre um perfil fechado ao longo delas (tubos, dutos);
+- `cad.mirror_object`, `cad.linear_pattern` e `cad.polar_pattern` espelham e
+  repetem sólidos por plano, eixo linear e círculo;
 - `cad.create_rectangular_sketch` e `cad.create_circular_sketch` agora geram
   sketches totalmente constrangidos;
 - `cad.create_helical_gear` gera engrenagem helicoidal com o perfil involuto
-  oficial e torção controlada;
+  oficial e torção controlada; as engrenagens aceitam `phase` para alinhar o
+  engrenamento sem transform manual;
 - `cad.create_external_thread` gera rosca externa estilo ISO 60° para
   impressão 3D.
 
@@ -208,8 +215,8 @@ O benchmark offline não usa rede, chave ou FreeCAD:
 .\scripts\benchmark_agent.ps1 -Strategy selector
 ```
 
-No corpus mecânico M4, o seletor recupera 38/38 ferramentas esperadas. No corpus
-geral, envia um subconjunto pequeno das 43 ferramentas e economiza 95,5% dos bytes de
+No corpus mecânico M4, o seletor recupera 46/46 ferramentas esperadas. No corpus
+geral, envia um subconjunto pequeno das 47 ferramentas e economiza 96,0% dos bytes de
 schemas.
 
 ## Segurança
@@ -246,13 +253,14 @@ Codex e Cursor está em [docs/mcp-integration.md](docs/mcp-integration.md).
 Estratégia vigente: **MCP primeiro** (decisão de 14/07/2026, detalhada em
 `docs/milestones.md` e `docs/product-vision.md`).
 
-- **M6 — MCP como produto**: exportação STL/STEP controlada, guia de
-  integração testado com Claude Code/Codex/Cursor e feedback visual para o
-  agente. Fecha o fluxo "pedido em linguagem natural → arquivo fabricável".
-- **M7 — Cobertura de modelagem**: sketch constrangido, revolução, sweep,
-  loft, furos com rebaixo e novas receitas.
-- **M8 — Lançamento público**: instalação simples, docs de usuário, demo
-  gravada e abertura do repositório.
+- **M6 — MCP como produto** (concluído): exportação STL/STEP controlada, guia
+  de integração testado com Claude Code/Codex/Cursor e o fluxo "pedido em
+  linguagem natural → arquivo fabricável" exercitado de ponta a ponta.
+- **M7 — Cobertura de modelagem** (concluído): documentos, revolução, loft,
+  sweep, sketch constrangido, furos com rebaixo/escareado/roscados,
+  engrenagens com fase, rosca interna, espelhamento, padrões e novas receitas.
+- **M8 — Lançamento público** (próximo): instalação simples, docs de usuário,
+  demo gravada e abertura do repositório.
 
 A IA embutida (modo DeepSeek, seletor e loop) está em modo manutenção: segue
 funcionando e testada, mas as horas novas vão para o MCP. Não haverá suporte

@@ -511,6 +511,52 @@ def mechanical_tool_specs() -> tuple[ToolSpec, ...]:
             output_schema=OBJECT_RESULT,
         ),
         _spec(
+            "cad.create_threaded_hole",
+            "Cut a blind internal ISO-style 60-degree threaded hole into an "
+            "existing solid, from the TOP face down by depth millimeters, at "
+            "GLOBAL coordinates x, y. diameter is the nominal major diameter "
+            "and pitch the thread pitch (e.g. M8x1.25: diameter 8, pitch "
+            "1.25). Maximum 64 turns. Meant for 3D printing.",
+            ToolRisk.MODIFY,
+            _object_schema(
+                {
+                    "object": REFERENCE,
+                    "diameter": POSITIVE,
+                    "pitch": POSITIVE,
+                    "x": NUMBER,
+                    "y": NUMBER,
+                    "depth": POSITIVE,
+                    "name": NAME,
+                },
+                ("object", "diameter", "pitch", "x", "y", "depth"),
+            ),
+            family="feature",
+            aliases=(
+                "furo roscado",
+                "rosca interna",
+                "roscar furo",
+                "threaded hole",
+                "internal thread",
+                "tapped hole",
+            ),
+            tags=(
+                "rosca",
+                "roscado",
+                "furo",
+                "parafuso",
+                "porca",
+                "thread",
+                "tapped",
+                "internal",
+            ),
+            examples=(
+                "Faça um furo roscado M8 com passo 1.25 e 12 mm de profundidade.",
+                "Cut an M6 threaded hole 10 mm deep into the block.",
+            ),
+            order=166,
+            output_schema=OBJECT_RESULT,
+        ),
+        _spec(
             "cad.create_rectangular_sketch",
             "Create a closed rectangular sketch on the global XY plane with one "
             "corner at the origin, spanning width along X and height along "
@@ -757,12 +803,134 @@ def mechanical_tool_specs() -> tuple[ToolSpec, ...]:
             output_schema=OBJECT_RESULT,
         ),
         _spec(
+            "cad.mirror_object",
+            "Mirror one solid across a global plane through the origin (xy, yz "
+            "or xz) into a new derived solid linked to the source. Good for "
+            "left/right symmetric parts.",
+            ToolRisk.MODIFY,
+            _object_schema(
+                {
+                    "object": REFERENCE,
+                    "plane": {"type": "string", "enum": ["xy", "yz", "xz"]},
+                    "name": NAME,
+                },
+                ("object",),
+            ),
+            family="pattern",
+            aliases=("espelhar", "espelhamento", "mirror", "mirror object"),
+            tags=(
+                "espelho",
+                "espelhe",
+                "espelhado",
+                "simetria",
+                "espelhar",
+                "mirror",
+                "symmetry",
+            ),
+            examples=(
+                "Espelhe o suporte no plano YZ.",
+                "Mirror the bracket across the xz plane.",
+            ),
+            order=250,
+            output_schema=OBJECT_RESULT,
+        ),
+        _spec(
+            "cad.linear_pattern",
+            "Copy one solid into a linear array of count instances spaced by "
+            "spacing millimeters along a global axis (x, y or z), fused into "
+            "one derived solid. Maximum 64 instances.",
+            ToolRisk.MODIFY,
+            _object_schema(
+                {
+                    "object": REFERENCE,
+                    "count": {"type": "integer", "minimum": 2, "maximum": 64},
+                    "spacing": POSITIVE,
+                    "direction": {"type": "string", "enum": ["x", "y", "z"]},
+                    "name": NAME,
+                },
+                ("object", "count", "spacing"),
+            ),
+            family="pattern",
+            aliases=(
+                "padrão linear",
+                "repetição linear",
+                "linear pattern",
+                "linear array",
+            ),
+            tags=(
+                "padrão",
+                "repetir",
+                "repita",
+                "vezes",
+                "linear",
+                "array",
+                "cópias",
+                "pattern",
+                "repeat",
+            ),
+            examples=(
+                "Repita a nervura seis vezes a cada 20 mm no eixo X.",
+                "Make a linear pattern of 4 copies spaced 15 mm.",
+            ),
+            order=252,
+            output_schema=OBJECT_RESULT,
+        ),
+        _spec(
+            "cad.polar_pattern",
+            "Copy one solid into a polar array of count instances spread over "
+            "angle degrees around a global axis (x, y or z) through the "
+            "origin, fused into one derived solid. A full 360 steps evenly; "
+            "a smaller angle spreads the copies across the arc. Maximum 64 "
+            "instances.",
+            ToolRisk.MODIFY,
+            _object_schema(
+                {
+                    "object": REFERENCE,
+                    "count": {"type": "integer", "minimum": 2, "maximum": 64},
+                    "angle": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 360,
+                    },
+                    "axis": {"type": "string", "enum": ["x", "y", "z"]},
+                    "name": NAME,
+                },
+                ("object", "count"),
+            ),
+            family="pattern",
+            aliases=(
+                "padrão polar",
+                "padrão circular",
+                "repetição polar",
+                "polar pattern",
+                "circular pattern",
+            ),
+            tags=(
+                "padrão",
+                "polar",
+                "circular",
+                "revolução",
+                "ao redor",
+                "pattern",
+                "polar",
+                "around",
+            ),
+            examples=(
+                "Distribua a pá em um padrão polar de 8 ao redor do eixo Z.",
+                "Make a polar pattern of 6 copies over 360 degrees.",
+            ),
+            order=254,
+            output_schema=OBJECT_RESULT,
+        ),
+        _spec(
             "cad.create_spur_gear",
             "Create an external involute spur gear centered at the global "
             "origin, extruded along +Z by thickness millimeters. Pitch "
             "diameter = module * teeth (mm); mesh two gears by spacing "
-            "their centers at the sum of pitch radii. bore_diameter 0 "
-            "means solid; pressure_angle is in degrees.",
+            "their centers at the sum of pitch radii and phasing one by the "
+            "mesh_phase_deg returned here (half an angular pitch). "
+            "bore_diameter 0 means solid; pressure_angle and phase are in "
+            "degrees.",
             ToolRisk.MODIFY,
             _object_schema(
                 {
@@ -775,6 +943,7 @@ def mechanical_tool_specs() -> tuple[ToolSpec, ...]:
                         "minimum": 14.5,
                         "maximum": 25,
                     },
+                    "phase": {"type": "number", "minimum": -360, "maximum": 360},
                     "name": NAME,
                 },
                 ("teeth", "module", "thickness", "bore_diameter"),
@@ -793,8 +962,9 @@ def mechanical_tool_specs() -> tuple[ToolSpec, ...]:
             "Create an external involute helical gear centered at the global "
             "origin, extruded along +Z with a controlled twist. helix_angle "
             "is in degrees (1 to 45, sign sets hand); mesh two helical gears "
-            "by using opposite signs and the same module. Pitch diameter = "
-            "module * teeth (mm); bore_diameter 0 means solid.",
+            "by using opposite signs, the same module and phasing one by the "
+            "returned mesh_phase_deg. Pitch diameter = module * teeth (mm); "
+            "bore_diameter 0 means solid; phase is in degrees.",
             ToolRisk.MODIFY,
             _object_schema(
                 {
@@ -812,6 +982,7 @@ def mechanical_tool_specs() -> tuple[ToolSpec, ...]:
                         "minimum": 14.5,
                         "maximum": 25,
                     },
+                    "phase": {"type": "number", "minimum": -360, "maximum": 360},
                     "name": NAME,
                 },
                 ("teeth", "module", "thickness", "helix_angle", "bore_diameter"),

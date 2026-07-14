@@ -199,3 +199,91 @@ def test_adapter_validates_sweep_paths_before_freecad() -> None:
         )
     with pytest.raises(ValueError, match="cannot be negative"):
         adapter.create_sweep_path(["0,0,0", "0,0,40"], corner_radius=-1)
+
+
+def test_threaded_hole_and_pattern_specs_are_reversible_mutations() -> None:
+    registry = build_default_registry()
+    for name in (
+        "cad.create_threaded_hole",
+        "cad.mirror_object",
+        "cad.linear_pattern",
+        "cad.polar_pattern",
+    ):
+        spec = registry.get_spec(name)
+        assert spec.risk is ToolRisk.MODIFY
+        assert spec.output_schema is not None
+
+
+def test_gear_phase_is_an_optional_bounded_parameter() -> None:
+    registry = build_default_registry()
+    base = {"teeth": 20, "module": 2, "thickness": 8, "bore_diameter": 8}
+    assert registry.validate_arguments(
+        "cad.create_spur_gear", {**base, "phase": 9}
+    ) == {**base, "phase": 9}
+    for overrides in ({"phase": 361}, {"phase": -361}):
+        with pytest.raises(ToolInputError):
+            registry.validate_arguments("cad.create_spur_gear", {**base, **overrides})
+    helical = {**base, "helix_angle": 15}
+    assert registry.validate_arguments(
+        "cad.create_helical_gear", {**helical, "phase": -9}
+    ) == {**helical, "phase": -9}
+
+
+def test_threaded_hole_schema_requires_object_and_depth() -> None:
+    registry = build_default_registry()
+    base = {"object": "Base", "diameter": 8, "pitch": 1.25, "x": 0, "y": 0, "depth": 12}
+    assert registry.validate_arguments("cad.create_threaded_hole", base) == base
+    for overrides in ({"diameter": 0}, {"pitch": 0}, {"depth": -1}):
+        with pytest.raises(ToolInputError):
+            registry.validate_arguments(
+                "cad.create_threaded_hole", {**base, **overrides}
+            )
+
+
+def test_adapter_validates_threaded_hole_before_freecad() -> None:
+    adapter = FreeCadAdapter()
+    with pytest.raises(ValueError, match="quarter"):
+        adapter.create_threaded_hole("Base", 8, 3, 0, 0, 12)
+    with pytest.raises(ValueError, match="at least one pitch"):
+        adapter.create_threaded_hole("Base", 8, 1.25, 0, 0, 1)
+    with pytest.raises(ValueError, match="64 turns"):
+        adapter.create_threaded_hole("Base", 8, 0.5, 0, 0, 40)
+    with pytest.raises(ValueError, match="finite"):
+        adapter.create_threaded_hole("Base", 8, 1.25, float("inf"), 0, 12)
+
+
+def test_pattern_schemas_bound_counts_and_axes() -> None:
+    registry = build_default_registry()
+    assert registry.validate_arguments(
+        "cad.mirror_object", {"object": "Base", "plane": "xz"}
+    ) == {"object": "Base", "plane": "xz"}
+    with pytest.raises(ToolInputError):
+        registry.validate_arguments(
+            "cad.mirror_object", {"object": "Base", "plane": "diagonal"}
+        )
+    linear = {"object": "Base", "count": 4, "spacing": 15, "direction": "y"}
+    assert registry.validate_arguments("cad.linear_pattern", linear) == linear
+    for overrides in ({"count": 1}, {"count": 65}, {"spacing": 0}, {"direction": "w"}):
+        with pytest.raises(ToolInputError):
+            registry.validate_arguments("cad.linear_pattern", {**linear, **overrides})
+    polar = {"object": "Base", "count": 6, "angle": 360, "axis": "z"}
+    assert registry.validate_arguments("cad.polar_pattern", polar) == polar
+    for overrides in ({"count": 1}, {"angle": 0}, {"angle": 361}, {"axis": "q"}):
+        with pytest.raises(ToolInputError):
+            registry.validate_arguments("cad.polar_pattern", {**polar, **overrides})
+
+
+def test_adapter_validates_patterns_before_freecad() -> None:
+    adapter = FreeCadAdapter()
+    with pytest.raises(ValueError, match="mirror plane"):
+        adapter.mirror_object("Base", plane="diagonal")
+    with pytest.raises(ValueError, match="between 2 and 64"):
+        adapter.linear_pattern("Base", 1, 15)
+    with pytest.raises(ValueError, match="direction"):
+        adapter.linear_pattern("Base", 3, 15, direction="w")
+    with pytest.raises(ValueError, match="between 2 and 64"):
+        adapter.polar_pattern("Base", 1)
+    with pytest.raises(ValueError, match="within"):
+        adapter.polar_pattern("Base", 4, angle=0)
+    with pytest.raises(ValueError, match="axis"):
+        adapter.polar_pattern("Base", 4, axis="q")

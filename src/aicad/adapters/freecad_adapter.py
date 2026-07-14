@@ -7,6 +7,7 @@ from aicad.adapters.freecad.edits import EditMixin
 from aicad.adapters.freecad.export import ExportMixin
 from aicad.adapters.freecad.features import FeatureMixin
 from aicad.adapters.freecad.mechanical import MechanicalMixin
+from aicad.adapters.freecad.patterns import PatternMixin
 from aicad.adapters.freecad.sketches import SketchMixin
 from aicad.adapters.freecad.sweeps import SweepMixin
 
@@ -17,6 +18,7 @@ class FreeCadAdapter(
     SketchMixin,
     FeatureMixin,
     SweepMixin,
+    PatternMixin,
     MechanicalMixin,
     DocumentMixin,
     ExportMixin,

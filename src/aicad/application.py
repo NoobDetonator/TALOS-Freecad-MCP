@@ -95,6 +95,39 @@ class CadAdapter(Protocol):
         name: str = "AICountersunkHole",
     ) -> dict[str, Any]: ...
 
+    def create_threaded_hole(
+        self,
+        object: str,
+        diameter: float,
+        pitch: float,
+        x: float,
+        y: float,
+        depth: float,
+        name: str = "AIThreadedHole",
+    ) -> dict[str, Any]: ...
+
+    def mirror_object(
+        self, object: str, plane: str = "yz", name: str = "AIMirror"
+    ) -> dict[str, Any]: ...
+
+    def linear_pattern(
+        self,
+        object: str,
+        count: int,
+        spacing: float,
+        direction: str = "x",
+        name: str = "AILinearPattern",
+    ) -> dict[str, Any]: ...
+
+    def polar_pattern(
+        self,
+        object: str,
+        count: int,
+        angle: float = 360.0,
+        axis: str = "z",
+        name: str = "AIPolarPattern",
+    ) -> dict[str, Any]: ...
+
     def create_rectangular_sketch(
         self, width: float, height: float, name: str = "AIRectangleSketch"
     ) -> dict[str, Any]: ...
@@ -156,6 +189,7 @@ class CadAdapter(Protocol):
         helix_angle: float,
         bore_diameter: float,
         pressure_angle: float = 20,
+        phase: float = 0,
         name: str = "HelicalGear",
     ) -> dict[str, Any]: ...
 
@@ -174,6 +208,7 @@ class CadAdapter(Protocol):
         thickness: float,
         bore_diameter: float,
         pressure_angle: float = 20,
+        phase: float = 0,
         name: str = "SpurGear",
     ) -> dict[str, Any]: ...
 
@@ -237,6 +272,10 @@ def build_cad_tool_registry(adapter: CadAdapter) -> ToolRegistry:
         "cad.create_circular_hole_pattern": "create_circular_hole_pattern",
         "cad.create_counterbore_hole": "create_counterbore_hole",
         "cad.create_countersunk_hole": "create_countersunk_hole",
+        "cad.create_threaded_hole": "create_threaded_hole",
+        "cad.mirror_object": "mirror_object",
+        "cad.linear_pattern": "linear_pattern",
+        "cad.polar_pattern": "polar_pattern",
         "cad.create_rectangular_sketch": "create_rectangular_sketch",
         "cad.pad_sketch": "pad_sketch",
         "cad.boolean_operation": "boolean_operation",
