@@ -19,7 +19,7 @@ chat local e um modo DeepSeek standalone opcional, ambos em manutenção.
 Os marcos M0 a M5 estão implementados. O corte funcional atual oferece:
 
 - Workbench **AI CAD** e painel lateral testados no FreeCAD 1.1.1;
-- um único `ToolRegistry`, com 30 ferramentas, usado pelo chat e pelo MCP;
+- um único `ToolRegistry`, com 34 ferramentas, usado pelo chat e pelo MCP;
 - chat local determinístico e modo DeepSeek opcional;
 - leituras de documento, seleção, contexto, objetos, medidas, dependências,
   parâmetros editáveis e imagem da vista;
@@ -174,6 +174,7 @@ MCP, seleção e captura visual. Os marcadores esperados são:
 FREECAD_SMOKE_OK
 FREECAD_M4_SMOKE_OK
 FREECAD_M6_SMOKE_OK
+FREECAD_M7_SMOKE_OK
 FREECAD_GUI_SMOKE_OK
 ```
 
@@ -184,7 +185,7 @@ O benchmark offline não usa rede, chave ou FreeCAD:
 ```
 
 No corpus mecânico M4, o seletor recupera 30/30 ferramentas esperadas. No corpus
-geral, envia um subconjunto pequeno das 30 ferramentas e economiza 91,8% dos bytes de
+geral, envia um subconjunto pequeno das 34 ferramentas e economiza 91,8% dos bytes de
 schemas.
 
 ## Segurança

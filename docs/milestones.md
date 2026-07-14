@@ -603,7 +603,7 @@ Entregue:
   Cursor, o fluxo de trabalho recomendado ao agente (descobrir → ler →
   plano confirmado → verificar → exportar) e solução de problemas;
 - handshake verificado com um cliente MCP real por stdio: inicialização,
-  9 ferramentas MCP, catálogo com 30 ferramentas CAD (incluindo
+  9 ferramentas MCP, catálogo com 34 ferramentas CAD (incluindo
   `cad.export_stl`/`cad.export_step`) e 3 receitas listadas;
 - **teste de ponta a ponta com agente externo real executado em 14 de julho
   de 2026**: uma sessão do Claude Code conectada pelo `.mcp.json` modelou um
@@ -648,22 +648,50 @@ Com o FreeCAD aberto e o guia de integração em mãos, um agente externo real
 mutação confirmada no painel, auditada e reversível. A suíte cobre exportação
 com falha, sobrescrita negada e destino inválido.
 
-## 13. M7 — Cobertura de modelagem
+## 13. M7 — Cobertura de modelagem — em andamento
 
 Objetivo: ampliar o que um agente consegue modelar sozinho. Cada capacidade
 segue a regra de sempre — uma ferramenta por vez, com schema, validação,
 transação, undo e testes dentro e fora do FreeCAD.
 
+### M7.1 — Gerenciamento de documentos — concluído
+
+O teste real de ponta a ponta mostrou que o agente jogava tudo em um único
+documento sem nome. Entregue (catálogo com 34 ferramentas):
+
+- `cad.list_documents` (`read`): documentos abertos, caminho salvo, contagem
+  de objetos e qual é o ativo;
+- `cad.new_document` (`modify`): cria e ativa um documento vazio com nome
+  validado; recusa nome já aberto;
+- `cad.set_active_document` (`modify`): troca o documento ativo por nome ou
+  label, com resolução inequívoca;
+- `cad.save_document` (`export`): primeiro salvamento exige destino `.FCStd`
+  absoluto sem sobrescrita silenciosa; sem destino, salva no arquivo já
+  existente do documento; devolve tamanho e SHA-256;
+- operações de documento não abrem transação de geometria (não são cobertas
+  por `cad.undo`); a reversão é fechar/reabrir pelo próprio FreeCAD;
+- correção no `ToolSelector`: overlap parcial de alias só pontua com dois ou
+  mais tokens — um token genérico ("documento") não define mais a seleção; o
+  corpus M4 mantém recall 30/30 e a tag PT "parâmetro" foi adicionada a
+  `cad.set_parameter`;
+- `tests/freecad_m7_smoke.py` cobre criar, listar, trocar, salvar, salvar de
+  novo, recusa de duplicata e de sobrescrita, integrado ao `testar.ps1` com o
+  marcador `FREECAD_M7_SMOKE_OK`.
+
+### M7.2 — Próximas capacidades
+
 Ordem sugerida, por valor para o nicho:
 
-1. sketch retangular totalmente constrangido (fecha limitação conhecida);
-2. sketch com círculos, arcos e slots constrangidos;
-3. revolução de sketch (eixos, polias, tampas torneadas);
-4. furos com rebaixo e escareado (parafusos reais);
-5. sweep e loft controlados;
-6. novas receitas sobre as capacidades acima (ex.: caixa com tampa, suporte em
-   L, polia);
-7. espelhamento e padrão linear/polar de features.
+1. sketch circular (destrava revolução e loft úteis de imediato);
+2. revolução de sketch (eixos, polias, tampas torneadas);
+3. loft entre sketches (requer suporte a lista de referências no validador);
+4. engrenagem helicoidal (perfil involuto oficial com torção controlada);
+5. rosca externa (hélice + perfil triangular varrido);
+6. furos com rebaixo e escareado (parafusos reais);
+7. sweep controlado (depende de uma ferramenta de trajetória: linha/arco);
+8. sketch retangular totalmente constrangido (fecha limitação conhecida);
+9. novas receitas sobre as capacidades acima (ex.: polia, eixo escalonado);
+10. espelhamento e padrão linear/polar de features.
 
 Critério de aceite: o corpus de benchmark cresce junto com o catálogo e o
 seletor mantém recall; cada ferramenta nova tem teste de falha e de undo, não
@@ -852,7 +880,7 @@ e execute scripts/testar.ps1 para confirmar a base.
 
 Use como baseline o commit que contém a conclusão do M5 ou um posterior. Na árvore
 atual, M0 a M5 estão concluídos: Workbench e painel, ToolRegistry compartilhado
-com 30 ferramentas, ponte MCP–GUI, loop opcional DeepSeek, planos imutáveis e
+com 34 ferramentas, ponte MCP–GUI, loop opcional DeepSeek, planos imutáveis e
 compostos, rollback, leituras mecânicas, edição, placa, furos/padrões, sketch/pad,
 booleanas, filete/chanfro, três receitas, seleção aguardada e captura visual já
 funcionam e estão testados. Histórico local versionado registra pedidos, planos,

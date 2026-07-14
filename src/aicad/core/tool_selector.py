@@ -287,7 +287,9 @@ class ToolSelector:
             else:
                 alias_tokens = _tokens(alias)
                 overlap = query_tokens & alias_tokens
-                candidate_score = 6 * len(overlap) if overlap else 0
+                # A single shared generic token ("documento") is noise, not
+                # a signal that this alias was meant.
+                candidate_score = 6 * len(overlap) if len(overlap) >= 2 else 0
             if candidate_score > alias_score:
                 alias_score = candidate_score
                 alias_reason = normalized_alias

@@ -105,6 +105,16 @@ class CadAdapter(Protocol):
 
     def validate_document(self) -> dict[str, Any]: ...
 
+    def list_documents(self) -> dict[str, Any]: ...
+
+    def new_document(self, name: str = "AICadDoc") -> dict[str, Any]: ...
+
+    def set_active_document(self, document: str) -> dict[str, Any]: ...
+
+    def save_document(
+        self, destination: str = "", overwrite: bool = False
+    ) -> dict[str, Any]: ...
+
     def export_stl(
         self, destination: str, object: str, overwrite: bool = False
     ) -> dict[str, Any]: ...
@@ -158,6 +168,10 @@ def build_cad_tool_registry(adapter: CadAdapter) -> ToolRegistry:
         "cad.chamfer_edges": "chamfer_edges",
         "cad.create_spur_gear": "create_spur_gear",
         "cad.validate_document": "validate_document",
+        "cad.list_documents": "list_documents",
+        "cad.new_document": "new_document",
+        "cad.set_active_document": "set_active_document",
+        "cad.save_document": "save_document",
         "cad.export_stl": "export_stl",
         "cad.export_step": "export_step",
         "cad.undo": "undo",

@@ -22,17 +22,32 @@ def test_default_registry_has_unique_tools() -> None:
     assert [spec.name for spec in specs if spec.essential] == [
         "cad.get_context_snapshot"
     ]
-    assert len(specs) == 30
+    assert len(specs) == 34
     audit_names = {"cad.get_audit_history", "cad.export_audit_history"}
     assert {spec.name for spec in specs if spec.name in audit_names} == audit_names
     export_names = {spec.name for spec in specs if spec.family == "export"}
     assert export_names == {"cad.export_stl", "cad.export_step"}
+    document_names = {spec.name for spec in specs if spec.family == "document"}
+    assert document_names == {
+        "cad.list_documents",
+        "cad.new_document",
+        "cad.set_active_document",
+        "cad.save_document",
+    }
+    mechanical_families = {
+        "measurement",
+        "edit",
+        "mechanical",
+        "feature",
+        "pattern",
+        "sketch",
+        "boolean",
+        "finish",
+    }
     mechanical_specs = [
-        spec
-        for spec in specs[7:]
-        if spec.name not in audit_names and spec.family != "export"
+        spec for spec in specs if spec.family in mechanical_families
     ]
-    assert len(mechanical_specs) == 19
+    assert len(mechanical_specs) == 14
     assert all(spec.output_schema is not None for spec in mechanical_specs)
     assert mechanical_specs[-1].name == "cad.create_spur_gear"
 
