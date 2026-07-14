@@ -11,8 +11,11 @@ from aicad.core.tool_registry import ToolInputError, ToolRegistry, ToolRisk
 from aicad.orchestration.models import (
     OrchestrationPlan,
     PlannedToolCall,
+    ProviderAssistantMessage,
+    ProviderHistoryMessage,
     ProviderRequest,
     ProviderResponse,
+    ProviderToolResultMessage,
     ProviderToolDefinition,
     tool_definition_from_spec,
 )
@@ -90,9 +93,11 @@ class AiOrchestrator:
         *,
         context: Mapping[str, JsonValue] | None = None,
         allowed_tool_names: Sequence[str] | None = None,
+        history: Sequence[ProviderHistoryMessage] | None = None,
     ) -> OrchestrationPlan:
         cleaned_message = self._validate_user_message(user_message)
         checked_context = self._validate_context(context)
+        checked_history = self._validate_history(history)
         definitions = self._select_tool_definitions(
             cleaned_message,
             checked_context,
@@ -103,6 +108,7 @@ class AiOrchestrator:
             user_message=cleaned_message,
             context=checked_context,
             tools=definitions,
+            history=checked_history,
             max_tool_calls=self._limits.max_tool_calls if definitions else 0,
         )
 
@@ -200,6 +206,27 @@ class AiOrchestrator:
         if len(encoded) > self._limits.max_context_bytes:
             raise OrchestrationInputError("The orchestration context is too large.")
         return json.loads(encoded)
+
+    @staticmethod
+    def _validate_history(
+        history: Sequence[ProviderHistoryMessage] | None,
+    ) -> tuple[ProviderHistoryMessage, ...]:
+        if history is None:
+            return ()
+        if isinstance(history, (str, bytes)):
+            raise OrchestrationInputError("Provider history must be a sequence.")
+        checked = tuple(history)
+        if len(checked) > 24:
+            raise OrchestrationInputError("Provider history is too long.")
+        if any(
+            not isinstance(
+                message,
+                (ProviderAssistantMessage, ProviderToolResultMessage),
+            )
+            for message in checked
+        ):
+            raise OrchestrationInputError("Provider history contains an invalid item.")
+        return checked
 
     def _select_tool_definitions(
         self,

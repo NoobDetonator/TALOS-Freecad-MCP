@@ -40,9 +40,9 @@ O corte funcional atual cobre o ciclo completo para caixa e cilindro paramétric
 A DeepSeek já pode ser ativada explicitamente no painel para interpretar
 linguagem natural e propor uma chamada validada pelo registro. O modo permanece
 desligado por padrão; leituras podem prosseguir e mutações continuam pendentes
-até confirmação visual. Este primeiro corte usa somente uma rodada e uma
-ferramenta, sem loop autônomo. Exportação para fabricação ainda não foi
-implementada.
+até confirmação visual. O loop atual pode fazer várias leituras e revisar a
+resposta, mas não executa mutações por conta própria. Exportação para fabricação
+ainda não foi implementada.
 
 O M3.1 também está concluído: resultados e erros do futuro loop possuem contrato
 versionado, as etapas podem ser medidas com relógio monotônico sem persistir dados
@@ -61,6 +61,12 @@ relevante do `ToolRegistry`, limitado a quatro ferramentas e ordenado de forma
 estável. O seletor obteve recall 20/20 e reduziu 57,6% dos schemas no corpus v1;
 pedidos perigosos receberam somente leituras. Isso melhora velocidade e foco sem
 delegar seleção a outra chamada de IA nem criar permissão nova.
+
+O M3.4 está concluído. A IA pode pedir leituras, receber resultados estruturados
+e revisar a resposta em até quatro rodadas. O usuário vê o progresso e pode
+cancelar; a memória é temporária e vinculada à revisão CAD. O controlador nunca
+executa mutações: ao encontrar uma, encerra a descoberta e entrega apenas a
+proposta para o fluxo de confirmação já existente.
 
 ## Diferenciais pretendidos
 

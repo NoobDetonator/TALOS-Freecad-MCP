@@ -8,8 +8,10 @@ import httpx
 from pydantic import SecretStr
 
 from aicad.orchestration.models import (
+    ProviderAssistantMessage,
     ProviderRequest,
     ProviderResponse,
+    ProviderToolResultMessage,
     ProviderToolCall,
 )
 from aicad.orchestration.provider import AiProviderError
@@ -46,7 +48,18 @@ class DeepSeekProvider:
         self._api_key = api_key
         self._model = model
         self._timeout = timeout_seconds
-        self._client = client
+        self._client = client or httpx.Client(timeout=self._timeout)
+        self._owns_client = client is None
+
+    def close(self) -> None:
+        if self._owns_client:
+            self._client.close()
+
+    def __enter__(self) -> DeepSeekProvider:
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        self.close()
 
     def create_response(self, request: ProviderRequest) -> ProviderResponse:
         aliases = {
@@ -58,20 +71,12 @@ class DeepSeekProvider:
             "Content-Type": "application/json",
         }
         try:
-            if self._client is None:
-                with httpx.Client(timeout=self._timeout) as client:
-                    response = client.post(
-                        DEEPSEEK_CHAT_URL,
-                        headers=headers,
-                        json=body,
-                    )
-            else:
-                response = self._client.post(
-                    DEEPSEEK_CHAT_URL,
-                    headers=headers,
-                    json=body,
-                    timeout=self._timeout,
-                )
+            response = self._client.post(
+                DEEPSEEK_CHAT_URL,
+                headers=headers,
+                json=body,
+                timeout=self._timeout,
+            )
             response.raise_for_status()
             payload = response.json()
             return self._parse_response(payload, aliases)
@@ -118,12 +123,59 @@ class DeepSeekProvider:
                     },
                 }
             )
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_message},
+        ]
+        for item in request.history:
+            if isinstance(item, ProviderAssistantMessage):
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": item.content or None,
+                        "tool_calls": [
+                            {
+                                "id": call.call_id,
+                                "type": "function",
+                                "function": {
+                                    "name": self._history_tool_alias(
+                                        call.name,
+                                        aliases,
+                                    ),
+                                    "arguments": json.dumps(
+                                        call.arguments,
+                                        ensure_ascii=False,
+                                        allow_nan=False,
+                                        separators=(",", ":"),
+                                    ),
+                                },
+                            }
+                            for call in item.tool_calls
+                        ],
+                    }
+                )
+            elif isinstance(item, ProviderToolResultMessage):
+                self._history_tool_alias(item.name, aliases)
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": item.call_id,
+                        "content": json.dumps(
+                            {
+                                "status": item.status,
+                                "summary": item.summary,
+                                "result": item.result,
+                                "error_code": item.error_code,
+                            },
+                            ensure_ascii=False,
+                            allow_nan=False,
+                            separators=(",", ":"),
+                        ),
+                    }
+                )
         body: dict[str, Any] = {
             "model": self._model,
-            "messages": [
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": user_message},
-            ],
+            "messages": messages,
             "thinking": {"type": "disabled"},
             "stream": False,
             "max_tokens": 1200,
@@ -132,6 +184,19 @@ class DeepSeekProvider:
             body["tools"] = tools
             body["tool_choice"] = "auto"
         return body
+
+    @classmethod
+    def _history_tool_alias(
+        cls,
+        canonical_name: str,
+        aliases: Mapping[str, str],
+    ) -> str:
+        alias = cls._tool_alias(canonical_name)
+        if aliases.get(alias) != canonical_name:
+            raise DeepSeekProviderError(
+                "Provider history references a tool that is not allowed."
+            )
+        return alias
 
     @staticmethod
     def _tool_alias(canonical_name: str) -> str:

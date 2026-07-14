@@ -90,9 +90,9 @@ inexecutáveis, inclusive se uma confirmação antiga chegar depois do timeout.
 
 ## Planejamento independente de provedor
 
-`aicad.orchestration` define o primeiro bloco do M3 sem importar FreeCAD, Qt ou
-qualquer SDK de IA. O contrato `ProviderRequest` envia somente a mensagem atual,
-contexto JSON limitado e as definições de ferramentas permitidas para a rodada.
+`aicad.orchestration` define o núcleo do M3 sem importar FreeCAD, Qt ou qualquer
+SDK de IA. O contrato `ProviderRequest` envia mensagem atual, contexto JSON
+limitado, ferramentas permitidas e histórico tipado e limitado do turno.
 
 A resposta exige intenção, suposições, passos ordenados e chamadas estruturadas.
 `AiOrchestrator` rejeita respostas malformadas, IDs duplicados, ferramentas fora
@@ -106,7 +106,7 @@ O primeiro adaptador concreto chama o endpoint de chat da DeepSeek por HTTP,
 traduz temporariamente os nomes de ferramenta para o formato aceito pela API e
 restaura os nomes canônicos antes da validação. O modelo padrão é
 **deepseek-v4-flash**, com thinking desabilitado, resposta não streaming, timeout
-de 30 segundos e no máximo uma ferramenta por rodada no painel.
+de 30 segundos e no máximo duas ferramentas propostas por rodada no painel.
 
 A resposta da API nunca é executável por si só. Argumentos JSON inválidos,
 ferramentas desconhecidas, limites excedidos e respostas incompletas são
@@ -177,6 +177,36 @@ continua revalidado contra o schema original do `ToolRegistry`. No corpus v1, o
 seletor obteve recall 20/20, exposição de mutações 0/5 nos casos perigosos e
 economia de 57,6% dos bytes de schemas, sem dependência ou chamada de IA extra.
 
+## Loop controlado somente leitura
+
+O M3.4 adiciona `AgentTurnController` em `aicad.orchestration`, sem importar Qt ou
+FreeCAD. O controlador usa o `AiOrchestrator` e o mesmo `ToolRegistry`, com os
+limites iniciais de quatro rodadas, oito chamadas totais, seis leituras, uma
+proposta de mutação, 45 segundos e 64 KiB de resultados por turno.
+
+Cada resposta validada segue uma destas rotas:
+
+- sem chamada: encerra com resposta final;
+- somente leituras: executa pelo `read_executor` injetado, forma um resultado
+  seguro e devolve ao provedor preservando o `call_id`;
+- qualquer mutação: para em `awaiting_approval` sem chamar nenhum handler;
+- mistura de leitura e mutação, ID repetido ou orçamento excedido: falha fechada.
+
+No painel, o controlador roda no worker de rede, mas seu `read_executor` coloca a
+leitura em uma fila consumida pelo timer Qt. Assim, somente a thread principal
+chama o adaptador FreeCAD. O worker aguarda o resultado limitado e continua a
+conversa. O botão de cancelamento usa um token cooperativo verificado antes e
+depois de cada ponto seguro.
+
+`AgentSessionMemory` mantém apenas resultados compactos em RAM, no máximo oito e
+32 KiB. A identidade do `DocumentStateToken` vincula a memória à revisão; qualquer
+mudança relevante limpa os fatos anteriores. Nada é persistido e nenhuma chave,
+exceção ou caminho interno entra no histórico do provedor.
+
+`ProviderRequest.history` representa mensagens de assistente e ferramenta. O
+adaptador DeepSeek traduz esse histórico para o protocolo de tool calls e reutiliza
+um único `httpx.Client` durante o turno, evitando um novo handshake por rodada.
+
 ## Credenciais de provedor
 
 CredentialStore mantém identificadores de provedor separados das chaves e usa
@@ -197,10 +227,11 @@ externa depende da opção visível e de um novo envio do usuário.
 2. O seletor local escolhe até quatro ferramentas e fixa a ordem canônica.
 3. Um worker recupera a chave do cofre e chama o adaptador DeepSeek.
 4. AiOrchestrator revalida ferramenta, argumentos, risco e limites sem executar.
-5. O timer Qt recebe somente o plano validado e o apresenta com dados escapados.
-6. Leituras são executadas na thread Qt pelo registro compartilhado.
-7. Mutações entram no mesmo estado pendente do chat e exigem confirmação visual.
-8. A execução confirmada segue para o FreeCadAdapter transacional e reversível.
+5. Leituras entram na fila Qt, executam pelo registro e voltam ao mesmo turno.
+6. O modelo pode revisar a resposta dentro dos orçamentos do controlador.
+7. O timer Qt recebe somente o resultado final e o apresenta com dados escapados.
+8. Mutações encerram o loop sem execução e continuam exigindo confirmação visual.
+9. A execução confirmada segue para o FreeCadAdapter transacional e reversível.
 
 A fila de confirmações MCP não é substituída por uma resposta de IA. Enquanto
 uma consulta externa está em andamento, pedidos remotos aguardam; depois dela,
@@ -250,8 +281,7 @@ clique do usuário. Repetir a request com o mesmo ID consulta o resultado.
 
 ## Próxima etapa técnica
 
-M3.1, M3.2 e M3.3 foram concluídos. Seguir o M3.4 em
-`docs/ai-agent-optimization-plan.md`: criar o loop iterativo somente leitura com
-orçamento, cancelamento, memória de sessão e retorno estruturado de resultados ao
-provedor. Mutações com planos imutáveis e planos compostos continuam bloqueadas
-até essas bases passarem nos critérios de aceite.
+M3.1 a M3.4 foram concluídos. Seguir o M3.5 em
+`docs/ai-agent-optimization-plan.md`: substituir a autorização genérica de uma
+mutação por plano imutável, hash, estado-base e `ApprovalGrant`. Planos compostos
+continuam bloqueados até essa base passar nos critérios de aceite.

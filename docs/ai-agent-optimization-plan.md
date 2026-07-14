@@ -16,9 +16,10 @@ como registrados em `docs/milestones.md`.
 - **Estado do M3.1:** concluído após essa baseline, com 88 testes unitários.
 - **Estado do M3.2:** concluído, com 94 testes unitários e smokes reais.
 - **Estado do M3.3:** concluído, com 103 testes e benchmark local do seletor.
+- **Estado do M3.4:** concluído, com 110 testes e smokes reais.
 - **Capacidades atuais:** resumo, seleção, caixa, cilindro, validação e undo.
-- **IA atual:** uma rodada, no máximo uma chamada, sem retorno do resultado ao
-  modelo.
+- **IA atual:** até quatro rodadas, leituras retornam ao modelo e mutações encerram
+  a descoberta sem execução automática.
 
 O objetivo não é fazer a IA receber mais permissões. O objetivo é fazê-la obter o
 contexto certo, escolher melhor entre ferramentas pequenas e seguras, executar
@@ -590,7 +591,7 @@ Resultado registrado:
 - pontuação e motivos por ferramenta estão no relatório JSON do benchmark;
 - nenhuma dependência, chamada de modelo, permissão ou ferramenta CAD foi criada.
 
-### M3.4 — Loop somente leitura
+### M3.4 — Loop somente leitura — concluído
 
 Entregas:
 
@@ -602,6 +603,25 @@ Entregas:
 
 Aceite: o modelo pode ler resumo, seleção e detalhes, revisar sua resposta e
 terminar; nenhuma mutação é possível nesse modo.
+
+Resultado registrado:
+
+- `AgentTurnController` é neutro de Qt/FreeCAD e só recebe um `read_executor`;
+- o provedor recebe histórico tipado de assistente/ferramenta com ID, status,
+  resultado e código de erro seguro;
+- o loop limita quatro rodadas, oito chamadas, seis leituras, uma proposta de
+  mutação, 45 segundos e 64 KiB de resultados;
+- mutações encerram em `awaiting_approval` sem execução; mistura de riscos, ID
+  repetido e excesso de orçamento falham fechados;
+- cancelamento cooperativo é verificado em cada fronteira segura e aparece no
+  painel;
+- `AgentSessionMemory` mantém até oito resultados/32 KiB somente em RAM e limpa
+  quando o `DocumentStateToken` muda;
+- leituras pedidas no worker são enfileiradas e executadas exclusivamente pela
+  thread Qt antes de voltarem ao modelo;
+- o `httpx.Client` do DeepSeek é reutilizado durante as rodadas do turno;
+- o comportamento foi coberto por mocks locais, 110 testes e smokes reais; não
+  foi necessária chave, rede externa ou nova dependência para validar o marco.
 
 ### M3.5 — Mutação única com plano imutável
 
@@ -790,7 +810,7 @@ O marco de otimização estará concluído quando:
 ## 26. Orientação para retomada em outro chat
 
 Ao continuar, não começar aumentando o número de ferramentas nem alterando a
-ponte. M3.1, M3.2 e M3.3 estão concluídos; implementar o M3.4 deste documento e
-seguir os critérios de aceite em ordem. Qualquer atalho que introduza Python
-arbitrário, um registro paralelo ou aprovação ampla deve ser recusado mesmo que
-produza uma demonstração mais rápida.
+ponte. M3.1 a M3.4 estão concluídos; implementar o M3.5 deste documento e seguir
+os critérios de aceite em ordem. Qualquer atalho que introduza Python arbitrário,
+um registro paralelo ou aprovação ampla deve ser recusado mesmo que produza uma
+demonstração mais rápida.

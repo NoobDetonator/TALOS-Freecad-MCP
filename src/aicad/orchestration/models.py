@@ -9,6 +9,7 @@ from pydantic import (
     Field,
     JsonValue,
     StringConstraints,
+    model_validator,
 )
 
 from aicad.core.tool_registry import ToolRisk, ToolSpec
@@ -41,19 +42,6 @@ class ProviderToolDefinition(BaseModel):
     input_schema: dict[str, JsonValue]
 
 
-class ProviderRequest(BaseModel):
-    """One bounded planning request sent to an AI provider adapter."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    contract_version: Literal[PROVIDER_CONTRACT_VERSION] = PROVIDER_CONTRACT_VERSION
-    instructions: LongText
-    user_message: LongText
-    context: dict[str, JsonValue] = Field(default_factory=dict)
-    tools: tuple[ProviderToolDefinition, ...] = Field(max_length=128)
-    max_tool_calls: int = Field(ge=0, le=64)
-
-
 class ProviderToolCall(BaseModel):
     """Structured call proposed by a provider; never executable by itself."""
 
@@ -70,6 +58,75 @@ class ProviderToolCall(BaseModel):
         pattern=r"^cad\.[a-z][a-z0-9_]*$",
     )
     arguments: dict[str, JsonValue] = Field(default_factory=dict)
+
+
+class ProviderAssistantMessage(BaseModel):
+    """One validated assistant turn retained for a bounded tool loop."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    role: Literal["assistant"] = "assistant"
+    content: str = Field(default="", max_length=4000)
+    tool_calls: tuple[ProviderToolCall, ...] = Field(max_length=8)
+
+
+class ProviderToolResultMessage(BaseModel):
+    """A safe structured tool result returned to the provider."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    role: Literal["tool"] = "tool"
+    call_id: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+    )
+    name: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^cad\.[a-z][a-z0-9_]*$",
+    )
+    status: Literal["completed", "failed", "cancelled"]
+    summary: ShortText
+    result: JsonValue = None
+    error_code: str | None = Field(
+        default=None,
+        max_length=64,
+        pattern=r"^[a-z][a-z0-9_]*$",
+    )
+
+    @model_validator(mode="after")
+    def validate_status(self) -> ProviderToolResultMessage:
+        if self.status == "completed" and self.error_code is not None:
+            raise ValueError("A completed tool message cannot contain an error code.")
+        if self.status != "completed" and self.error_code is None:
+            raise ValueError("A failed tool message requires an error code.")
+        if self.status != "completed" and self.result is not None:
+            raise ValueError("A failed tool message cannot contain partial results.")
+        return self
+
+
+ProviderHistoryMessage = Annotated[
+    ProviderAssistantMessage | ProviderToolResultMessage,
+    Field(discriminator="role"),
+]
+
+
+class ProviderRequest(BaseModel):
+    """One bounded planning request sent to an AI provider adapter."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    contract_version: Literal[PROVIDER_CONTRACT_VERSION] = PROVIDER_CONTRACT_VERSION
+    instructions: LongText
+    user_message: LongText
+    context: dict[str, JsonValue] = Field(default_factory=dict)
+    tools: tuple[ProviderToolDefinition, ...] = Field(max_length=128)
+    history: tuple[ProviderHistoryMessage, ...] = Field(
+        default_factory=tuple,
+        max_length=24,
+    )
+    max_tool_calls: int = Field(ge=0, le=64)
 
 
 class ProviderResponse(BaseModel):

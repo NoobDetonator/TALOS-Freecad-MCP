@@ -19,7 +19,7 @@ rollback composto sem alterar as regras ou os marcos já concluídos.
   `C:\Users\HRBASSIST55\Downloads\Ai-Cad Agents`.
 - **Ambiente validado:** Windows, FreeCAD portátil 1.1.1 e Python 3.11 fornecido
   pelo próprio pacote do FreeCAD.
-- **Última validação completa:** 103 testes unitários, `FREECAD_SMOKE_OK` e
+- **Última validação completa:** 110 testes unitários, `FREECAD_SMOKE_OK` e
   `FREECAD_GUI_SMOKE_OK`, incluindo o fluxo MCP gráfico.
 
 O caminho local pode ser diferente no computador de casa. Nenhum código deve
@@ -304,8 +304,8 @@ ferramentas e confirmação já exercitada pelo MCP.
   erros e limites.
 - O adaptador DeepSeek e a ativação opcional no painel foram implementados
   sem bloquear a thread Qt.
-- Uma rodada propõe no máximo uma ferramenta; leituras executam e mutações
-  aguardam confirmação.
+- O loop faz até quatro rodadas e duas chamadas propostas por rodada; somente
+  leituras executam automaticamente e mutações aguardam confirmação.
 - O loop iterativo com retorno de resultados ao modelo ainda não foi implementado.
 - M3.1 concluído com `ToolResultEnvelope`, erros categorizados, eventos monotônicos,
   corpus de 30 pedidos e runner offline sem FreeCAD, rede ou credencial.
@@ -319,6 +319,8 @@ ferramentas e confirmação já exercitada pelo MCP.
   ordenação canônica antes da chamada DeepSeek.
 - Benchmark do seletor: recall 20/20, mutações expostas 0/5 nos pedidos perigosos,
   média de 2,83 ferramentas e economia de 57,6% dos schemas.
+- M3.4 concluído com loop de leitura, histórico de ferramentas, cancelamento,
+  progresso, memória em RAM e cliente HTTP reutilizado durante o turno.
 
 ### M3.1 — Medição e contratos — concluído
 
@@ -354,6 +356,18 @@ ferramentas e confirmação já exercitada pelo MCP.
   uma allowlist explícita.
 - `scripts/benchmark_agent.ps1 -Strategy selector` mede recall, motivos,
   exposição de risco e bytes de schemas sem rede, chave ou FreeCAD.
+
+### M3.4 — Loop somente leitura — concluído
+
+- `AgentTurnController` não importa Qt ou FreeCAD e recebe o executor de leitura.
+- Até quatro rodadas, oito chamadas totais, seis leituras, 45 segundos e 64 KiB
+  de resultados são permitidos por turno.
+- Mensagens de ferramenta preservam ID, status, resultado e código de erro seguro.
+- Mutações nunca são executadas pelo controlador; mistura de riscos falha fechada.
+- `AgentSessionMemory` guarda até oito resultados/32 KiB apenas em RAM e limpa ao
+  mudar o `DocumentStateToken`.
+- O painel executa leituras da IA na thread Qt, mostra progresso e permite cancelar.
+- `DeepSeekProvider` reutiliza o cliente HTTP durante todas as rodadas do turno.
 
 ### Passos
 
@@ -512,7 +526,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\testar.ps1
 
 Resultado esperado:
 
-- 103 testes Python aprovados ou quantidade superior;
+- 110 testes Python aprovados ou quantidade superior;
 - `FREECAD_SMOKE_OK`;
 - `FREECAD_GUI_SMOKE_OK`;
 - janela gráfica abre e fecha automaticamente;
@@ -617,11 +631,11 @@ e execute scripts/testar.ps1 para confirmar a base.
 O baseline mínimo desta revisão é 0048ffc ou um commit posterior. Na árvore atual, o
 Workbench, o chat local seguro, caixa e cilindro transacionais, undo, ToolRegistry
 compartilhado, ponte MCP–GUI autenticada e planejamento opcional com DeepSeek já
-funcionam e estão testados. M3.1, M3.2 e M3.3 também possuem contratos
-estruturados, métricas, benchmark offline, contexto versionado e seleção local de
-ferramentas. A DeepSeek ainda usa uma rodada e uma ferramenta. O próximo marco
-recomendado é M3.4 em docs/ai-agent-optimization-plan.md: criar o loop iterativo
-somente leitura, com orçamento e cancelamento, sem habilitar novas mutações.
+funcionam e estão testados. M3.1 a M3.4 também possuem contratos estruturados,
+métricas, benchmark offline, contexto versionado, seleção local de ferramentas e
+loop controlado de leitura. O próximo marco recomendado é M3.5 em
+docs/ai-agent-optimization-plan.md: congelar uma mutação em plano imutável com
+hash, estado-base e autorização exata, sem habilitar planos compostos.
 
 Mantenha o FreeCAD como adaptador, não crie execução arbitrária de Python, não
 salve credenciais no projeto e faça toda mutação de forma transacional, validada

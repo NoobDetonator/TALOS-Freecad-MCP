@@ -22,6 +22,8 @@ O primeiro protótipo usa o FreeCAD como motor de modelagem, visualização e do
 - Mudanças manuais relevantes alteram o token de estado e invalidam contexto antigo.
 - Seletor local PT/EN envia somente ferramentas relevantes em ordem estável à IA.
 - Benchmark do seletor: recall 20/20 e economia de 57,6% dos schemas no corpus v1.
+- Loop DeepSeek limitado executa leituras, devolve resultados e permite cancelar.
+- Memória de leitura permanece em RAM e é invalidada quando o estado CAD muda.
 - Testes unitários, teste transacional no FreeCADCmd e fluxo MCP gráfico automatizado.
 - Instalação reproduzível e isolada para Windows.
 
@@ -95,14 +97,21 @@ O modo começa desligado. Marcar a opção não faz uma chamada por si só, mas 
 envio feito enquanto ela estiver marcada transmite o texto e um snapshot limitado
 e versionado do documento ativo para https://api.deepseek.com/chat/completions. Um
 seletor local escolhe até quatro ferramentas relevantes antes do envio, sem outra
-chamada ao modelo. O adaptador usa **deepseek-v4-flash** e uma rodada com no máximo
-uma chamada de ferramenta.
+chamada ao modelo. O adaptador usa **deepseek-v4-flash** e pode fazer até quatro
+rodadas controladas para ler o documento e revisar a resposta.
 
 Respostas de leitura podem usar o ToolRegistry imediatamente. Operações
 **modify**, como criar uma caixa, um cilindro ou desfazer, mostram intenção,
 plano, ferramenta
 e argumentos e só são executadas depois de **Confirmar operação**. Desmarcar a
 opção restaura o chat local fechado. O botão **Remover chave** apaga a credencial.
+
+Durante uma consulta, o painel mostra se está preparando contexto, selecionando
+ferramentas, consultando o modelo, validando ou lendo o documento. **Cancelar
+consulta da IA** solicita interrupção cooperativa no próximo ponto seguro. As
+leituras pedidas pelo modelo são executadas na thread principal do FreeCAD; seus
+resultados voltam ao modelo com ID, status e código de erro controlado. O loop não
+executa mutações e não repete indefinidamente.
 
 ## Testes
 

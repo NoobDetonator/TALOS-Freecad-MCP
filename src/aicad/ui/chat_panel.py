@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from html import escape
 from queue import Empty, Queue
-from threading import Thread
+from threading import Event, Thread
+from typing import Any
 
 from aicad.bridge.protocol import (
     BridgeRequest,
@@ -12,6 +14,13 @@ from aicad.bridge.protocol import (
 from aicad.core.chat_commands import ChatCommand, format_tool_result, parse_chat_command
 from aicad.core.tool_registry import ToolRisk
 from aicad.orchestration import (
+    AgentSessionMemory,
+    AgentStage,
+    AgentTurnCancellation,
+    AgentTurnCancelledError,
+    AgentTurnController,
+    AgentTurnResult,
+    AgentTurnStatus,
     AiOrchestrator,
     DeepSeekProvider,
     OrchestrationLimits,
@@ -26,6 +35,16 @@ from aicad.ui.bridge_controller import GuiBridgeController, get_or_start_gui_bri
 
 
 DOCK_NAME = "AICadChatDock"
+
+
+@dataclass(slots=True)
+class _GuiReadRequest:
+    name: str
+    arguments: dict[str, Any]
+    cancellation: AgentTurnCancellation
+    completed: Event = field(default_factory=Event)
+    result: Any = None
+    error: Exception | None = None
 
 
 def show_chat_panel() -> None:
@@ -82,6 +101,10 @@ def show_chat_panel() -> None:
     send = QtWidgets.QPushButton("Enviar", container)
     send.setObjectName("AICadSend")
 
+    cancel_ai_button = QtWidgets.QPushButton("Cancelar consulta da IA", container)
+    cancel_ai_button.setObjectName("AICadCancelAi")
+    cancel_ai_button.hide()
+
     confirmation = QtWidgets.QWidget(container)
     confirmation.setObjectName("AICadConfirmation")
     confirmation_layout = QtWidgets.QHBoxLayout(confirmation)
@@ -104,6 +127,11 @@ def show_chat_panel() -> None:
     credential_vault_available = [True]
     ai_busy = [False]
     ai_results: Queue[tuple[str, object]] = Queue()
+    ai_progress: Queue[AgentStage] = Queue()
+    ai_read_requests: Queue[_GuiReadRequest] = Queue()
+    active_ai_cancellation: list[AgentTurnCancellation] = []
+    ai_stage: list[AgentStage | None] = [None]
+    session_memory = AgentSessionMemory()
     ai_timer = QtCore.QTimer(container)
 
     def append_assistant(message: str) -> None:
@@ -127,7 +155,14 @@ def show_chat_panel() -> None:
         else:
             parts.append("chave DeepSeek gerenciada sob demanda")
         if ai_busy[0]:
-            parts.append("consultando DeepSeek")
+            stage_labels = {
+                AgentStage.PREPARE_CONTEXT: "preparando contexto",
+                AgentStage.SELECT_TOOLS: "selecionando ferramentas",
+                AgentStage.ASK_MODEL: "consultando DeepSeek",
+                AgentStage.VALIDATE_PLAN: "validando plano",
+                AgentStage.EXECUTE_READS: "lendo o documento",
+            }
+            parts.append(stage_labels.get(ai_stage[0], "consultando DeepSeek"))
         elif use_deepseek.isChecked():
             parts.append("DeepSeek habilitada")
         status.setText(" • ".join(parts))
@@ -215,10 +250,14 @@ def show_chat_panel() -> None:
 
     def set_ai_busy(busy: bool) -> None:
         ai_busy[0] = busy
+        if not busy:
+            ai_stage[0] = None
         inputs_enabled = not busy and not pending
         prompt.setEnabled(inputs_enabled)
         send.setEnabled(inputs_enabled)
         use_deepseek.setEnabled(inputs_enabled)
+        cancel_ai_button.setVisible(busy)
+        cancel_ai_button.setEnabled(busy)
         refresh_security_status()
 
     def refresh_view(tool_name: str) -> None:
@@ -319,6 +358,9 @@ def show_chat_panel() -> None:
                 "Não foi possível preparar o contexto do documento para a DeepSeek."
             )
             return
+        cancellation = AgentTurnCancellation()
+        active_ai_cancellation.clear()
+        active_ai_cancellation.append(cancellation)
         set_ai_busy(True)
         ai_timer.start()
 
@@ -331,21 +373,33 @@ def show_chat_panel() -> None:
             if api_key is None:
                 ai_results.put(("missing_key", None))
                 return
+            provider = None
             try:
                 provider = DeepSeekProvider(api_key)
                 orchestrator = AiOrchestrator(
                     registry,
                     provider,
-                    limits=OrchestrationLimits(max_tool_calls=1),
+                    limits=OrchestrationLimits(max_tool_calls=2),
                 )
-                plan = orchestrator.create_plan(
+                controller = AgentTurnController(
+                    registry,
+                    orchestrator,
+                    read_executor=execute_ai_read_on_gui,
+                    memory=session_memory,
+                )
+                turn = controller.run(
                     text,
                     context={"snapshot": document_context},
+                    cancellation=cancellation,
+                    progress=ai_progress.put,
                 )
             except Exception:
                 ai_results.put(("provider_error", None))
                 return
-            ai_results.put(("plan", plan))
+            finally:
+                if provider is not None:
+                    provider.close()
+            ai_results.put(("turn", turn))
 
         Thread(
             target=worker,
@@ -353,12 +407,61 @@ def show_chat_panel() -> None:
             daemon=True,
         ).start()
 
+    def execute_ai_read_on_gui(
+        name: str,
+        arguments: dict[str, Any],
+    ) -> Any:
+        if not active_ai_cancellation:
+            raise AgentTurnCancelledError("The AI turn is no longer active.")
+        cancellation = active_ai_cancellation[0]
+        request = _GuiReadRequest(name, dict(arguments), cancellation)
+        ai_read_requests.put(request)
+        while not request.completed.wait(0.05):
+            cancellation.raise_if_cancelled()
+        cancellation.raise_if_cancelled()
+        if request.error is not None:
+            raise RuntimeError("The GUI read failed safely.") from request.error
+        return request.result
+
+    def process_ai_read_requests() -> None:
+        while True:
+            try:
+                request = ai_read_requests.get_nowait()
+            except Empty:
+                return
+            try:
+                request.cancellation.raise_if_cancelled()
+                request.result = registry.execute(request.name, request.arguments)
+            except Exception as exc:
+                request.error = exc
+            finally:
+                request.completed.set()
+
+    def cancel_ai_turn() -> None:
+        if not ai_busy[0] or not active_ai_cancellation:
+            return
+        active_ai_cancellation[0].cancel()
+        cancel_ai_button.setEnabled(False)
+        append_assistant(
+            "Cancelamento solicitado; a operação será interrompida no próximo "
+            "ponto seguro."
+        )
+
     def process_ai_result() -> None:
+        process_ai_read_requests()
+        try:
+            while True:
+                ai_stage[0] = ai_progress.get_nowait()
+        except Empty:
+            pass
+        if ai_busy[0]:
+            refresh_security_status()
         try:
             result_kind, payload = ai_results.get_nowait()
         except Empty:
             return
         ai_timer.stop()
+        active_ai_cancellation.clear()
         set_ai_busy(False)
         if result_kind == "missing_key":
             credential_configured[0] = False
@@ -372,7 +475,7 @@ def show_chat_panel() -> None:
             refresh_security_status()
             show_next_remote_confirmation()
             return
-        if result_kind != "plan" or not isinstance(payload, OrchestrationPlan):
+        if result_kind != "turn" or not isinstance(payload, AgentTurnResult):
             credential_configured[0] = True
             append_assistant(
                 "A DeepSeek não respondeu com um plano válido. "
@@ -384,11 +487,20 @@ def show_chat_panel() -> None:
         credential_configured[0] = True
         credential_vault_available[0] = True
         refresh_security_status()
-        append_assistant(describe_ai_plan(payload))
-        if not payload.tool_calls:
+        if payload.status is AgentTurnStatus.CANCELLED:
+            append_assistant("Consulta cancelada sem alterar o documento.")
             show_next_remote_confirmation()
             return
-        call = payload.tool_calls[0]
+        plan = payload.final_plan
+        if plan is None:
+            append_assistant("A consulta terminou sem um plano utilizável.")
+            show_next_remote_confirmation()
+            return
+        append_assistant(describe_ai_plan(plan))
+        if not plan.tool_calls:
+            show_next_remote_confirmation()
+            return
+        call = plan.tool_calls[0]
         command = ChatCommand(
             message="Operação proposta pela DeepSeek.",
             tool_name=call.name,
@@ -468,6 +580,7 @@ def show_chat_panel() -> None:
     ai_timer.setInterval(50)
     ai_timer.timeout.connect(process_ai_result)
     send.clicked.connect(submit)
+    cancel_ai_button.clicked.connect(cancel_ai_turn)
     apply_button.clicked.connect(confirm_pending)
     cancel_button.clicked.connect(cancel_pending)
     configure_api_key.clicked.connect(configure_deepseek_api_key)
@@ -479,6 +592,7 @@ def show_chat_panel() -> None:
     layout.addWidget(history, 1)
     layout.addWidget(prompt)
     layout.addWidget(send)
+    layout.addWidget(cancel_ai_button)
     layout.addWidget(confirmation)
     dock.setWidget(container)
     main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)

@@ -13,12 +13,19 @@ from aicad.orchestration import (
     DeepSeekProvider,
     DeepSeekProviderError,
     InvalidProviderResponseError,
+    ProviderAssistantMessage,
     ProviderRequest,
+    ProviderToolCall,
+    ProviderToolResultMessage,
     tool_definition_from_spec,
 )
 
 
-def provider_request(*, with_tools: bool = True) -> ProviderRequest:
+def provider_request(
+    *,
+    with_tools: bool = True,
+    history=(),
+) -> ProviderRequest:
     registry = build_default_registry()
     tools = (
         (tool_definition_from_spec(registry.get_spec("cad.create_box")),)
@@ -30,6 +37,7 @@ def provider_request(*, with_tools: bool = True) -> ProviderRequest:
         user_message="Crie uma caixa de 10 por 20 por 30 milímetros.",
         context={"document": {"active": False}},
         tools=tools,
+        history=history,
         max_tool_calls=1 if tools else 0,
     )
 
@@ -113,6 +121,55 @@ def test_deepseek_plain_text_response_does_not_require_tools() -> None:
     assert response.message == "Documento vazio."
     assert response.plan == ("Documento vazio.",)
     assert response.tool_calls == ()
+
+
+def test_deepseek_serializes_bounded_assistant_and_tool_history() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "Documento vazio."}}]},
+        )
+
+    history = (
+        ProviderAssistantMessage(
+            content="Vou ler o documento.",
+            tool_calls=(
+                ProviderToolCall(
+                    call_id="read-1",
+                    name="cad.create_box",
+                    arguments={"length": 10, "width": 20, "height": 30},
+                ),
+            ),
+        ),
+        ProviderToolResultMessage(
+            call_id="read-1",
+            name="cad.create_box",
+            status="failed",
+            summary="A ferramenta não foi executada.",
+            error_code="execution_failed",
+        ),
+    )
+    provider = DeepSeekProvider(
+        SecretStr("ds-test"),
+        client=mock_client(handler),
+    )
+
+    provider.create_response(provider_request(history=history))
+
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert [message["role"] for message in body["messages"]] == [
+        "system",
+        "user",
+        "assistant",
+        "tool",
+    ]
+    assert body["messages"][2]["tool_calls"][0]["id"] == "read-1"
+    assert body["messages"][3]["tool_call_id"] == "read-1"
+    assert "não foi executada" in body["messages"][3]["content"]
 
 
 @pytest.mark.parametrize(
