@@ -15,6 +15,7 @@ O primeiro protótipo usa o FreeCAD como motor de modelagem, visualização e do
 - Criação de caixa em transação validada e registrada no histórico de desfazer.
 - Ponte MCP–GUI autenticada, restrita ao loopback e executada pela thread Qt.
 - Mutações MCP pendentes até confirmação explícita no painel.
+- Base de orquestração neutra valida planos e chamadas sem executar ferramentas.
 - Testes unitários, teste transacional no FreeCADCmd e fluxo MCP gráfico automatizado.
 - Instalação reproduzível e isolada para Windows.
 
@@ -68,6 +69,20 @@ O transporte escuta apenas em `127.0.0.1`, usa token aleatório por sessão,
 mensagens limitadas e timeout. O token não é gravado no repositório nem exibido
 em logs.
 
+## Chave OpenAI
+
+No painel do FreeCAD, clique em **Configurar chave OpenAI**, cole a chave no
+campo mascarado e confirme. Para trocar a chave, use o mesmo botão novamente.
+O botão **Remover chave** apaga explicitamente a credencial.
+
+A chave fica no Gerenciador de Credenciais do Windows por meio de `keyring`.
+Ela não é salva em `.env`, arquivos do projeto, logs ou histórico do painel.
+Abrir o painel não consulta o cofre. Depois de configurar ou remover, o status
+mostra apenas o estado da credencial, nunca seu conteúdo.
+
+Configurar a credencial ainda não ativa o provedor nem envia dados externamente;
+isso ocorrerá somente quando o adaptador e o fluxo de ativação forem concluídos.
+
 ## Testes
 
 ```powershell
@@ -79,10 +94,10 @@ confirmar que o Workbench aparece, o painel abre e o fluxo criar/desfazer funcio
 
 ## Segurança
 
-Chaves de API nunca devem ser salvas no repositório. Nenhuma chave é solicitada
-na fase atual. Quando um provedor realmente for integrado, a credencial será
-armazenada no cofre do Windows. A pasta `.runtime`, ambientes, downloads,
-arquivos CAD gerados e segredos são ignorados pelo Git.
+Chaves de API nunca são salvas no repositório. O painel grava e remove a
+credencial somente pelo cofre do Windows. A pasta `.runtime`, ambientes,
+downloads, arquivos CAD gerados e segredos permanecem ignorados pelo Git.
+Salvar uma chave não ativa o provedor automaticamente.
 
 O MCP não acessa o adaptador diretamente. Toda chamada passa pelo protocolo
 tipado, pela validação do `ToolRegistry`, pela fila da GUI e, nas mutações, pela

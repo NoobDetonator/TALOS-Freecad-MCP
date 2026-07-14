@@ -22,7 +22,7 @@ Peças mecânicas simples para impressão 3D e fabricação leve:
 6. Recalcular e validar.
 7. Confirmar ou reverter.
 
-## Estado da fase 1
+## Estado atual
 
 O primeiro corte funcional cobre o ciclo completo para uma caixa paramétrica:
 
@@ -33,11 +33,15 @@ O primeiro corte funcional cobre o ciclo completo para uma caixa paramétrica:
 - a caixa é criada em transação, recalculada e validada;
 - a transação é reversível por `desfazer`;
 - a mesma lista de capacidades é usada pelo chat e pelo MCP;
-- mutações MCP continuam bloqueadas até existir confirmação pela GUI.
+- a ponte MCP–GUI executa leituras na thread Qt;
+- mutações MCP ficam pendentes até confirmação explícita no painel;
+- o M3 já possui contratos neutros e planejamento estruturado sem execução.
 
-Ainda não há interpretação por modelo de IA, credencial de provedor, exportação
-para fabricação ou ponte entre processos. Esses itens não são simulados pelo
-protótipo: permanecem explicitamente fora do corte atual.
+Ainda não há provedor de IA ativo ou exportação para fabricação. A chave OpenAI
+já pode ser configurada explicitamente no cofre do Windows, mas isso não ativa
+rede nem modelo. A base neutra de planejamento é real e testada, porém ainda não
+interpreta pedidos nem executa ferramentas por conta própria. Essas capacidades
+permanecem desativadas até seus próximos cortes.
 
 ## Diferenciais pretendidos
 

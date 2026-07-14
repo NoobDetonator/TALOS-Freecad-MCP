@@ -9,6 +9,10 @@ from aicad.bridge.protocol import (
 )
 from aicad.core.chat_commands import ChatCommand, format_tool_result, parse_chat_command
 from aicad.core.tool_registry import ToolRisk
+from aicad.orchestration.credentials import (
+    CredentialStore,
+    CredentialStoreError,
+)
 from aicad.runtime import get_tool_registry
 from aicad.ui.bridge_controller import GuiBridgeController, get_or_start_gui_bridge
 
@@ -36,11 +40,19 @@ def show_chat_panel() -> None:
     container = QtWidgets.QWidget(dock)
     layout = QtWidgets.QVBoxLayout(container)
 
-    status = QtWidgets.QLabel(
-        "Modo local seguro • nenhuma chave de API configurada", container
-    )
+    status = QtWidgets.QLabel("Modo local seguro", container)
     status.setObjectName("AICadStatus")
     status.setWordWrap(True)
+
+    credential_actions = QtWidgets.QWidget(container)
+    credential_actions_layout = QtWidgets.QHBoxLayout(credential_actions)
+    credential_actions_layout.setContentsMargins(0, 0, 0, 0)
+    configure_api_key = QtWidgets.QPushButton("Configurar chave OpenAI", container)
+    configure_api_key.setObjectName("AICadConfigureApiKey")
+    remove_api_key = QtWidgets.QPushButton("Remover chave", container)
+    remove_api_key.setObjectName("AICadRemoveApiKey")
+    credential_actions_layout.addWidget(configure_api_key, 1)
+    credential_actions_layout.addWidget(remove_api_key)
 
     history = QtWidgets.QTextBrowser(container)
     history.setObjectName("AICadHistory")
@@ -74,9 +86,100 @@ def show_chat_panel() -> None:
     pending: list[ChatCommand | BridgeRequest] = []
     remote_confirmation_queue: list[BridgeRequest] = []
     bridge_controller: list[GuiBridgeController] = []
+    credential_store = CredentialStore()
+    bridge_active = [False]
+    credential_configured: list[bool | None] = [None]
+    credential_vault_available = [True]
 
     def append_assistant(message: str) -> None:
         history.append(f"<p><b>AI CAD:</b> {message}</p>")
+
+    def refresh_security_status() -> None:
+        parts = [
+            "Modo local seguro",
+            (
+                "ponte MCP local ativa"
+                if bridge_active[0]
+                else "ponte MCP indisponível"
+            ),
+        ]
+        if not credential_vault_available[0]:
+            parts.append("cofre de credenciais indisponível")
+        elif credential_configured[0] is True:
+            parts.append("chave OpenAI no cofre; IA ainda inativa")
+        elif credential_configured[0] is False:
+            parts.append("sem chave OpenAI")
+        else:
+            parts.append("chave OpenAI gerenciada sob demanda")
+        status.setText(" • ".join(parts))
+        remove_api_key.setEnabled(credential_vault_available[0])
+
+
+    def configure_openai_api_key() -> None:
+        api_key, accepted = QtWidgets.QInputDialog.getText(
+            dock,
+            "Configurar chave OpenAI",
+            (
+                "Cole sua chave de API. Ela será salva somente no cofre "
+                "de credenciais do Windows:"
+            ),
+            QtWidgets.QLineEdit.Password,
+        )
+        if not accepted:
+            return
+        try:
+            credential_store.set_api_key("openai", api_key)
+        except (CredentialStoreError, ValueError) as exc:
+            append_assistant(
+                "A chave OpenAI não foi salva: " + escape(str(exc))
+            )
+            return
+        credential_configured[0] = True
+        credential_vault_available[0] = True
+        append_assistant(
+            "Chave OpenAI salva no cofre do Windows. "
+            "Nenhuma chamada externa foi ativada ainda."
+        )
+        refresh_security_status()
+
+    def remove_openai_api_key() -> None:
+        try:
+            has_api_key = credential_store.has_api_key("openai")
+        except CredentialStoreError as exc:
+            credential_vault_available[0] = False
+            append_assistant(
+                "O cofre de credenciais não pôde ser consultado: "
+                + escape(str(exc))
+            )
+            refresh_security_status()
+            return
+        credential_vault_available[0] = True
+        credential_configured[0] = has_api_key
+        if not has_api_key:
+            append_assistant("Nenhuma chave OpenAI está salva no cofre do Windows.")
+            refresh_security_status()
+            return
+        decision = QtWidgets.QMessageBox.question(
+            dock,
+            "Remover chave OpenAI",
+            "Remover a chave OpenAI do cofre de credenciais do Windows?",
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.No,
+        )
+        if decision != QtWidgets.QMessageBox.Yes:
+            return
+        try:
+            credential_store.delete_api_key("openai")
+        except CredentialStoreError as exc:
+            append_assistant(
+                "A chave OpenAI não foi removida: " + escape(str(exc))
+            )
+            return
+        credential_configured[0] = False
+        credential_vault_available[0] = True
+        append_assistant("Chave OpenAI removida do cofre do Windows.")
+        refresh_security_status()
+
 
     def set_pending(
         command: ChatCommand | BridgeRequest | None,
@@ -199,12 +302,12 @@ def show_chat_panel() -> None:
             append_assistant("Solicitação MCP cancelada sem alterar o documento.")
         show_next_remote_confirmation()
 
+    refresh_security_status()
     try:
         controller = get_or_start_gui_bridge(queue_bridge_confirmation)
         bridge_controller.append(controller)
-        status.setText(
-            "Modo local seguro • ponte MCP local ativa • nenhuma chave de API"
-        )
+        bridge_active[0] = True
+        refresh_security_status()
     except (OSError, RuntimeError, ValueError) as exc:
         append_assistant(
             "Ponte MCP indisponível; o chat local continua ativo: "
@@ -214,7 +317,10 @@ def show_chat_panel() -> None:
     send.clicked.connect(submit)
     apply_button.clicked.connect(confirm_pending)
     cancel_button.clicked.connect(cancel_pending)
+    configure_api_key.clicked.connect(configure_openai_api_key)
+    remove_api_key.clicked.connect(remove_openai_api_key)
     layout.addWidget(status)
+    layout.addWidget(credential_actions)
     layout.addWidget(history, 1)
     layout.addWidget(prompt)
     layout.addWidget(send)

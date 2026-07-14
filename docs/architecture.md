@@ -8,7 +8,7 @@ A IA planeja, a camada de ferramentas autoriza, o FreeCAD executa e o validador 
 
 1. **Interface** — painel lateral dentro do FreeCAD. O modo atual interpreta um
    vocabulário local fechado e não executa texto como código.
-2. **Orquestrador de IA** — futuramente usa a Responses API e outros provedores.
+2. **Orquestrador de IA** — planeja por um contrato neutro; adaptadores concretos virão depois.
 3. **ToolRegistry** — catálogo único, schemas, handlers, validação de argumentos
    e bloqueio de ferramentas de risco sem confirmação explícita.
 4. **Application** — conecta todas as especificações a uma única interface de
@@ -86,6 +86,39 @@ Repetir a mesma request com o mesmo ID funciona como polling idempotente. Reusar
 o ID com conteúdo diferente é rejeitado. Requests expiradas permanecem
 inexecutáveis, inclusive se uma confirmação antiga chegar depois do timeout.
 
+## Planejamento independente de provedor
+
+`aicad.orchestration` define o primeiro bloco do M3 sem importar FreeCAD, Qt ou
+qualquer SDK de IA. O contrato `ProviderRequest` envia somente a mensagem atual,
+contexto JSON limitado e as definições de ferramentas permitidas para a rodada.
+
+A resposta exige intenção, suposições, passos ordenados e chamadas estruturadas.
+`AiOrchestrator` rejeita respostas malformadas, IDs duplicados, ferramentas fora
+da allowlist, argumentos inválidos e chamadas acima do limite configurado.
+
+Cada chamada aceita passa novamente por `ToolRegistry.validate_arguments` e
+recebe o risco autoritativo do registro. O plano marca se haverá confirmação,
+mas não executa handlers; texto retornado pelo provedor nunca vira código.
+
+Este corte faz uma única rodada de planejamento. Adaptador concreto, ativação do
+provedor, execução de leituras, confirmação de mutações, cancelamento e loop
+iterativo permanecem fora dele até suas políticas serem implementadas e testadas.
+
+## Credenciais de provedor
+
+`CredentialStore` mantém identificadores de provedor separados das chaves e usa
+`keyring` como única fronteira de persistência. A chave OpenAI é associada a uma
+conta específica dentro do serviço `ai-cad-workbench` no cofre do sistema.
+
+O painel oferece configuração/substituição em campo mascarado e remoção
+explícita. Abrir o painel não acessa o cofre nem bloqueia a thread Qt; consultas
+ocorrem apenas nas ações de configuração ou remoção. O valor não aparece em
+widgets, logs ou mensagens. Erros do backend são
+categorizados sem incluir o erro bruto, que poderia carregar material sensível.
+
+O retorno programático usa `SecretStr`. Salvar a chave apenas prepara o futuro
+adaptador e não ativa rede, modelo ou execução de ferramentas.
+
 ## Regra de dependência
 
 `aicad.core` não importa FreeCAD ou Qt. A UI, o MCP e os provedores dependem do núcleo. Somente `aicad.adapters.freecad_adapter` conversa diretamente com o FreeCAD.
@@ -130,6 +163,7 @@ clique do usuário. Repetir a request com o mesmo ID consulta o resultado.
 
 ## Próxima etapa técnica
 
-Integrar um provedor de IA sem mudar os schemas, os handlers CAD nem a trilha de
-confirmação. O orquestrador deverá produzir somente chamadas estruturadas e usar
-os mesmos limites já exercitados pelo chat e pelo MCP.
+Implementar o primeiro adaptador de provedor sobre o contrato neutro, definir sua
+configuração e integrar o plano ao painel. A execução de leituras e o envio de
+mutações para confirmação continuarão usando o registro e a ponte existentes,
+com cancelamento e limites de iteração adicionados antes de ativar o provedor.

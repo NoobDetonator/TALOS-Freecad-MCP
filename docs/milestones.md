@@ -14,7 +14,7 @@ roteiro de desenvolvimento e os critérios de aceite de cada etapa.
   `C:\Users\HRBASSIST55\Downloads\Ai-Cad Agents`.
 - **Ambiente validado:** Windows, FreeCAD portátil 1.1.1 e Python 3.11 fornecido
   pelo próprio pacote do FreeCAD.
-- **Última validação completa:** 45 testes unitários, `FREECAD_SMOKE_OK` e
+- **Última validação completa:** 62 testes unitários, `FREECAD_SMOKE_OK` e
   `FREECAD_GUI_SMOKE_OK`, incluindo o fluxo MCP gráfico.
 
 O caminho local pode ser diferente no computador de casa. Nenhum código deve
@@ -123,6 +123,7 @@ flowchart LR
 | Ponte local | `src/aicad/bridge/` | Protocolo, sessão, transporte e dispatcher |
 | Controlador Qt | `src/aicad/ui/bridge_controller.py` | Ciclo de vida e transferência para a thread GUI |
 | MCP | `src/aicad/mcp_server.py` | Catálogo e chamadas remotas controladas |
+| Orquestração | `src/aicad/orchestration/` | Contratos neutros e planejamento validado sem execução |
 | Workbench | `src/freecad/AiCad/InitGui.py` | Registro e ativação do Workbench |
 | Testes | `scripts/testar.ps1` | Testes unitários, FreeCADCmd e GUI real |
 
@@ -143,7 +144,7 @@ flowchart LR
 | M0 — Fundação | Concluído | Estrutura, Workbench, adaptador, registro e testes iniciais |
 | M1 — Chat local seguro | Concluído | Painel funcional, caixa transacional, confirmação e registro compartilhado |
 | M2 — Ponte MCP–GUI | Concluído | Comunicação local segura e execução na thread Qt |
-| M3 — Orquestrador de IA | Planejado | Modelo interpreta intenção e chama somente ferramentas registradas |
+| M3 — Orquestrador de IA | Em andamento | Contrato neutro e planejamento estruturado implementados |
 | M4 — Modelagem mecânica básica | Planejado | Mais primitivas e operações paramétricas seguras |
 | M5 — Histórico e auditoria | Planejado | Registro persistente de planos, confirmações e resultados |
 | M6 — Validação e exportação | Planejado | Regras de fabricação e exportações controladas |
@@ -272,12 +273,25 @@ caixa; ela só aparece após confirmação no painel, pode ser desfeita e toda a
 suíte passa. Não existe endpoint externo, Python arbitrário ou atalho direto ao
 adaptador.
 
-## 9. M3 — Orquestrador de IA
+## 9. M3 — Orquestrador de IA — em andamento
 
 ### Dependência
 
 Começar somente depois de M2 estar estável. O modelo deve usar a mesma trilha de
 ferramentas e confirmação já exercitada pelo MCP.
+
+### Progresso atual
+
+- Contratos tipados de request, response, ferramentas e plano independentes de SDK.
+- Interface `AiProvider` definida como `Protocol` síncrono e substituível.
+- Conversão de `ToolSpec` preserva schema e risco sem depender do provedor.
+- `AiOrchestrator` envia somente contexto JSON limitado e ferramentas permitidas.
+- Chamadas propostas são revalidadas pelo `ToolRegistry` e nunca executadas no plano.
+- Limites de mensagem, contexto, ferramentas e chamadas são aplicados localmente.
+- `CredentialStore` usa `keyring` e retorna segredos protegidos por `SecretStr`.
+- O painel permite configurar, substituir e remover a chave OpenAI sem exibi-la.
+- Dezessete testes cobrem planejamento, isolamento, credenciais, erros e limites.
+- Adaptador concreto, ativação e loop de execução ainda não foram implementados.
 
 ### Passos
 
@@ -290,12 +304,12 @@ ferramentas e confirmação já exercitada pelo MCP.
 7. Limitar número de iterações, tempo e volume de chamadas.
 8. Permitir cancelar a execução pelo painel.
 9. Adicionar uma configuração de provedor sem acoplar schemas ao provedor.
-10. Solicitar chave apenas quando o usuário ativar o provedor pela primeira vez.
+10. Configurar a chave somente por ação explícita do usuário no painel.
 
 ### Credenciais
 
 - Usar `keyring` com o cofre de credenciais do Windows.
-- Salvar somente identificador do serviço e conta no projeto, nunca o segredo.
+- Salvar identificadores no cofre e nunca gravar o segredo em arquivos do projeto.
 - Não usar `.env` como solução de produção.
 - Não imprimir a chave em logs, mensagens de erro ou testes.
 - Oferecer ação explícita para substituir ou remover a credencial.

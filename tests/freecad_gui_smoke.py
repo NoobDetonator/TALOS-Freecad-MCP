@@ -59,7 +59,22 @@ def inspect() -> None:
         send = dock.findChild(QtWidgets.QPushButton, "AICadSend")
         apply_button = dock.findChild(QtWidgets.QPushButton, "AICadApply")
         history = dock.findChild(QtWidgets.QTextBrowser, "AICadHistory")
-        assert all(widget is not None for widget in (prompt, send, apply_button, history))
+        configure_key = dock.findChild(
+            QtWidgets.QPushButton,
+            "AICadConfigureApiKey",
+        )
+        remove_key = dock.findChild(QtWidgets.QPushButton, "AICadRemoveApiKey")
+        assert all(
+            widget is not None
+            for widget in (
+                prompt,
+                send,
+                apply_button,
+                history,
+                configure_key,
+                remove_key,
+            )
+        )
         session = default_session_store().load()
         bridge_client = TcpBridgeClient(session.endpoint)
         summary_request = BridgeRequest(
