@@ -37,11 +37,12 @@ O primeiro corte funcional cobre o ciclo completo para uma caixa paramétrica:
 - mutações MCP ficam pendentes até confirmação explícita no painel;
 - o M3 já possui contratos neutros e planejamento estruturado sem execução.
 
-Ainda não há provedor de IA ativo ou exportação para fabricação. A chave OpenAI
-já pode ser configurada explicitamente no cofre do Windows, mas isso não ativa
-rede nem modelo. A base neutra de planejamento é real e testada, porém ainda não
-interpreta pedidos nem executa ferramentas por conta própria. Essas capacidades
-permanecem desativadas até seus próximos cortes.
+A DeepSeek já pode ser ativada explicitamente no painel para interpretar
+linguagem natural e propor uma chamada validada pelo registro. O modo permanece
+desligado por padrão; leituras podem prosseguir e mutações continuam pendentes
+até confirmação visual. Este primeiro corte usa somente uma rodada e uma
+ferramenta, sem loop autônomo. Exportação para fabricação ainda não foi
+implementada.
 
 ## Diferenciais pretendidos
 

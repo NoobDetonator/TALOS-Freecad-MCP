@@ -6,15 +6,15 @@ roteiro de desenvolvimento e os critérios de aceite de cada etapa.
 
 ## 1. Snapshot da transferência
 
-- **Data:** 13 de julho de 2026.
+- **Data:** 14 de julho de 2026.
 - **Repositório privado:** `https://github.com/NoobDetonator/ai-cad-agents`.
 - **Branch de trabalho:** `main`.
-- **Commit funcional de referência:** `f90fa66` — `Add safe functional chat milestone`.
+- **Commit funcional de referência:** `dd5b4f9` — `Add secure AI orchestration foundation`.
 - **Diretório usado no computador do trabalho:**
   `C:\Users\HRBASSIST55\Downloads\Ai-Cad Agents`.
 - **Ambiente validado:** Windows, FreeCAD portátil 1.1.1 e Python 3.11 fornecido
   pelo próprio pacote do FreeCAD.
-- **Última validação completa:** 62 testes unitários, `FREECAD_SMOKE_OK` e
+- **Última validação completa:** 69 testes unitários, `FREECAD_SMOKE_OK` e
   `FREECAD_GUI_SMOKE_OK`, incluindo o fluxo MCP gráfico.
 
 O caminho local pode ser diferente no computador de casa. Nenhum código deve
@@ -43,13 +43,12 @@ Estas regras têm precedência sobre conveniências de implementação:
 - O Workbench aparece como **AI CAD** na lista do FreeCAD.
 - Ao ativá-lo, o painel lateral de chat abre à direita.
 - O lançador preserva corretamente caminhos do Windows que contêm espaços.
-- O painel informa que está em modo local e que nenhuma chave de API foi
-  configurada.
+- O painel inicia no modo local; a DeepSeek só participa quando a opção visível
+  é marcada pelo usuário.
 
 ### Chat local determinístico
 
-O chat ainda não usa um modelo de IA. Ele reconhece somente um vocabulário local
-fechado, o que permite validar o fluxo seguro antes de adicionar um provedor:
+O modo padrão continua sem modelo e reconhece um vocabulário local fechado:
 
 ```text
 resumo
@@ -144,7 +143,7 @@ flowchart LR
 | M0 — Fundação | Concluído | Estrutura, Workbench, adaptador, registro e testes iniciais |
 | M1 — Chat local seguro | Concluído | Painel funcional, caixa transacional, confirmação e registro compartilhado |
 | M2 — Ponte MCP–GUI | Concluído | Comunicação local segura e execução na thread Qt |
-| M3 — Orquestrador de IA | Em andamento | Contrato neutro e planejamento estruturado implementados |
+| M3 — Orquestrador de IA | Em andamento | DeepSeek opcional com plano seguro de uma rodada |
 | M4 — Modelagem mecânica básica | Planejado | Mais primitivas e operações paramétricas seguras |
 | M5 — Histórico e auditoria | Planejado | Registro persistente de planos, confirmações e resultados |
 | M6 — Validação e exportação | Planejado | Regras de fabricação e exportações controladas |
@@ -289,13 +288,18 @@ ferramentas e confirmação já exercitada pelo MCP.
 - Chamadas propostas são revalidadas pelo `ToolRegistry` e nunca executadas no plano.
 - Limites de mensagem, contexto, ferramentas e chamadas são aplicados localmente.
 - `CredentialStore` usa `keyring` e retorna segredos protegidos por `SecretStr`.
-- O painel permite configurar, substituir e remover a chave OpenAI sem exibi-la.
-- Dezessete testes cobrem planejamento, isolamento, credenciais, erros e limites.
-- Adaptador concreto, ativação e loop de execução ainda não foram implementados.
+- O painel permite configurar, substituir e remover a chave DeepSeek sem exibi-la.
+- Testes cobrem planejamento, isolamento, credenciais, tradução de ferramentas,
+  erros e limites.
+- O adaptador DeepSeek e a ativação opcional no painel foram implementados
+  sem bloquear a thread Qt.
+- Uma rodada propõe no máximo uma ferramenta; leituras executam e mutações
+  aguardam confirmação.
+- O loop iterativo com retorno de resultados ao modelo ainda não foi implementado.
 
 ### Passos
 
-1. Definir uma interface de provedor independente do SDK da OpenAI.
+1. Manter a interface de provedor independente de qualquer SDK específico.
 2. Converter `ToolSpec` para o formato de ferramentas do provedor.
 3. Enviar ao modelo somente contexto necessário e specs permitidas.
 4. Tratar respostas textuais, chamadas de ferramenta e erros de forma explícita.
@@ -506,7 +510,8 @@ uma caixa pequena. Não usar documentos importantes para o primeiro teste manual
 - A seleção topológica do FreeCAD pode ser instável após mudanças paramétricas;
   operações futuras precisam tratar esse problema explicitamente.
 - Não há persistência de conversas ou auditoria estruturada ainda.
-- Não há provedor de IA nem chave configurada.
+- O modo DeepSeek realiza uma única rodada; ainda não devolve resultados de
+  ferramentas ao modelo.
 
 ## 17. Decisões técnicas
 
@@ -523,7 +528,7 @@ uma caixa pequena. Não usar documentos importantes para o primeiro teste manual
 
 1. Política de aprovação para leituras potencialmente caras.
 2. Persistência e retenção do histórico de auditoria.
-3. Primeiro provedor de IA e interface mínima comum entre provedores.
+3. Política de loop iterativo e troca futura entre provedores.
 4. Estratégia para referências topológicas robustas.
 5. Ordem exata das ferramentas mecânicas após caixa e cilindro.
 6. Formato de distribuição do Workbench para usuários não desenvolvedores.

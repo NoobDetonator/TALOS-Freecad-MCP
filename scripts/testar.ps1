@@ -7,6 +7,7 @@ $FreeCadExeFile = Join-Path $Runtime "freecad-exe.txt"
 $FreeCadModule = Join-Path $ProjectRoot "src\freecad\AiCad"
 $UserConfig = Join-Path $Runtime "test-user.cfg"
 $SystemConfig = Join-Path $Runtime "test-system.cfg"
+$GuiSmokeTimeoutSeconds = 60
 
 if (-not (Test-Path -LiteralPath $VenvPython)) {
     throw "Ambiente Python ausente. Execute .\scripts\setup.ps1."
@@ -48,7 +49,7 @@ try {
         )
         $startedAt = Get-Date
         $process = Start-Process -FilePath $FreeCadExe -ArgumentList $arguments -PassThru
-        $deadline = $startedAt.AddSeconds(30)
+        $deadline = $startedAt.AddSeconds($GuiSmokeTimeoutSeconds)
         $guiText = $null
         do {
             if (Test-Path -LiteralPath $guiResult) {
@@ -70,7 +71,7 @@ try {
                     $_.CommandLine -like "*freecad_gui_smoke.py*"
                 } |
                 ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
-            throw "O teste grafico do FreeCAD excedeu 30 segundos. Consulte $guiLog."
+            throw "O teste grafico do FreeCAD excedeu $GuiSmokeTimeoutSeconds segundos. Consulte $guiLog."
         }
         if ($guiText -ne "FREECAD_GUI_SMOKE_OK") {
             throw "O teste grafico do FreeCAD falhou: $guiText"

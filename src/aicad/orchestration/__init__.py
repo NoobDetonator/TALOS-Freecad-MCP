@@ -3,6 +3,12 @@ from aicad.orchestration.credentials import (
     CredentialStore,
     CredentialStoreError,
 )
+from aicad.orchestration.deepseek import (
+    DEFAULT_DEEPSEEK_MODEL,
+    DEEPSEEK_CHAT_URL,
+    DeepSeekProvider,
+    DeepSeekProviderError,
+)
 from aicad.orchestration.models import (
     OrchestrationPlan,
     PlannedToolCall,
@@ -31,6 +37,10 @@ __all__ = [
     "CREDENTIAL_SERVICE",
     "CredentialStore",
     "CredentialStoreError",
+    "DEFAULT_DEEPSEEK_MODEL",
+    "DEEPSEEK_CHAT_URL",
+    "DeepSeekProvider",
+    "DeepSeekProviderError",
     "InvalidProviderResponseError",
     "OrchestrationError",
     "OrchestrationInputError",

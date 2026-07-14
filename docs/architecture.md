@@ -8,7 +8,7 @@ A IA planeja, a camada de ferramentas autoriza, o FreeCAD executa e o validador 
 
 1. **Interface** — painel lateral dentro do FreeCAD. O modo atual interpreta um
    vocabulário local fechado e não executa texto como código.
-2. **Orquestrador de IA** — planeja por um contrato neutro; adaptadores concretos virão depois.
+2. **Orquestrador de IA** — planeja por um contrato neutro; o primeiro adaptador concreto usa a DeepSeek.
 3. **ToolRegistry** — catálogo único, schemas, handlers, validação de argumentos
    e bloqueio de ferramentas de risco sem confirmação explícita.
 4. **Application** — conecta todas as especificações a uma única interface de
@@ -100,24 +100,43 @@ Cada chamada aceita passa novamente por `ToolRegistry.validate_arguments` e
 recebe o risco autoritativo do registro. O plano marca se haverá confirmação,
 mas não executa handlers; texto retornado pelo provedor nunca vira código.
 
-Este corte faz uma única rodada de planejamento. Adaptador concreto, ativação do
-provedor, execução de leituras, confirmação de mutações, cancelamento e loop
-iterativo permanecem fora dele até suas políticas serem implementadas e testadas.
+O primeiro adaptador concreto chama o endpoint de chat da DeepSeek por HTTP,
+traduz temporariamente os nomes de ferramenta para o formato aceito pela API e
+restaura os nomes canônicos antes da validação. O modelo padrão é
+**deepseek-v4-flash**, com thinking desabilitado, resposta não streaming, timeout
+de 30 segundos e no máximo uma ferramenta por rodada no painel.
+
+A resposta da API nunca é executável por si só. Argumentos JSON inválidos,
+ferramentas desconhecidas, limites excedidos e respostas incompletas são
+recusados antes de chegar a um handler.
 
 ## Credenciais de provedor
 
-`CredentialStore` mantém identificadores de provedor separados das chaves e usa
-`keyring` como única fronteira de persistência. A chave OpenAI é associada a uma
-conta específica dentro do serviço `ai-cad-workbench` no cofre do sistema.
+CredentialStore mantém identificadores de provedor separados das chaves e usa
+keyring como única fronteira de persistência. A chave DeepSeek é associada à
+conta do provedor dentro do serviço ai-cad-workbench no cofre do sistema.
 
-O painel oferece configuração/substituição em campo mascarado e remoção
-explícita. Abrir o painel não acessa o cofre nem bloqueia a thread Qt; consultas
-ocorrem apenas nas ações de configuração ou remoção. O valor não aparece em
-widgets, logs ou mensagens. Erros do backend são
-categorizados sem incluir o erro bruto, que poderia carregar material sensível.
+O painel oferece configuração ou substituição em campo mascarado e remoção
+explícita. Abrir o painel não acessa o cofre nem bloqueia a thread Qt. O segredo
+só é recuperado pelo worker quando o usuário envia um pedido com **Usar IA
+DeepSeek** marcado. O valor não aparece em widgets, logs ou mensagens de erro.
 
-O retorno programático usa `SecretStr`. Salvar a chave apenas prepara o futuro
-adaptador e não ativa rede, modelo ou execução de ferramentas.
+O retorno programático usa SecretStr. Salvar a chave não ativa rede; a chamada
+externa depende da opção visível e de um novo envio do usuário.
+
+## Fluxo do modo DeepSeek
+
+1. A thread Qt lê um resumo limitado do documento pelo ToolRegistry.
+2. Um worker recupera a chave do cofre e chama o adaptador DeepSeek.
+3. AiOrchestrator revalida ferramenta, argumentos, risco e limites sem executar.
+4. O timer Qt recebe somente o plano validado e o apresenta com dados escapados.
+5. Leituras são executadas na thread Qt pelo registro compartilhado.
+6. Mutações entram no mesmo estado pendente do chat e exigem confirmação visual.
+7. A execução confirmada segue para o FreeCadAdapter transacional e reversível.
+
+A fila de confirmações MCP não é substituída por uma resposta de IA. Enquanto
+uma consulta externa está em andamento, pedidos remotos aguardam; depois dela,
+uma única operação pendente volta a controlar os botões de confirmar e cancelar.
 
 ## Regra de dependência
 
@@ -163,7 +182,7 @@ clique do usuário. Repetir a request com o mesmo ID consulta o resultado.
 
 ## Próxima etapa técnica
 
-Implementar o primeiro adaptador de provedor sobre o contrato neutro, definir sua
-configuração e integrar o plano ao painel. A execução de leituras e o envio de
-mutações para confirmação continuarão usando o registro e a ponte existentes,
-com cancelamento e limites de iteração adicionados antes de ativar o provedor.
+Adicionar o loop iterativo controlado para que resultados de leitura possam
+voltar ao modelo, com cancelamento explícito, orçamento de rodadas e auditoria.
+Antes disso, ampliar o catálogo mecânico uma ferramenta por vez, mantendo schemas
+neutros, confirmação de mutações e testes transacionais no FreeCAD.

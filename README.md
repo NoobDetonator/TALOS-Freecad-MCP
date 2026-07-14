@@ -69,19 +69,29 @@ O transporte escuta apenas em `127.0.0.1`, usa token aleatório por sessão,
 mensagens limitadas e timeout. O token não é gravado no repositório nem exibido
 em logs.
 
-## Chave OpenAI
+## IA DeepSeek
 
-No painel do FreeCAD, clique em **Configurar chave OpenAI**, cole a chave no
-campo mascarado e confirme. Para trocar a chave, use o mesmo botão novamente.
-O botão **Remover chave** apaga explicitamente a credencial.
+No painel do FreeCAD:
 
-A chave fica no Gerenciador de Credenciais do Windows por meio de `keyring`.
-Ela não é salva em `.env`, arquivos do projeto, logs ou histórico do painel.
-Abrir o painel não consulta o cofre. Depois de configurar ou remover, o status
-mostra apenas o estado da credencial, nunca seu conteúdo.
+1. clique em **Configurar chave DeepSeek**;
+2. cole a chave no campo mascarado e confirme;
+3. marque **Usar IA DeepSeek**;
+4. escreva o pedido em linguagem natural e clique em **Enviar**.
 
-Configurar a credencial ainda não ativa o provedor nem envia dados externamente;
-isso ocorrerá somente quando o adaptador e o fluxo de ativação forem concluídos.
+A chave fica no Gerenciador de Credenciais do Windows por meio de **keyring**.
+Ela não é salva em arquivos de ambiente, arquivos do projeto, logs ou histórico
+do painel. Abrir o painel não consulta o cofre. Depois de configurar ou remover,
+o status mostra apenas o estado da credencial, nunca seu conteúdo.
+
+O modo começa desligado. Marcar a opção não faz uma chamada por si só, mas cada
+envio feito enquanto ela estiver marcada transmite o texto e um resumo limitado
+do documento ativo para https://api.deepseek.com/chat/completions. O adaptador
+usa **deepseek-v4-flash** e uma rodada com no máximo uma chamada de ferramenta.
+
+Respostas de leitura podem usar o ToolRegistry imediatamente. Operações
+**modify**, como criar uma caixa ou desfazer, mostram intenção, plano, ferramenta
+e argumentos e só são executadas depois de **Confirmar operação**. Desmarcar a
+opção restaura o chat local fechado. O botão **Remover chave** apaga a credencial.
 
 ## Testes
 
@@ -97,7 +107,8 @@ confirmar que o Workbench aparece, o painel abre e o fluxo criar/desfazer funcio
 Chaves de API nunca são salvas no repositório. O painel grava e remove a
 credencial somente pelo cofre do Windows. A pasta `.runtime`, ambientes,
 downloads, arquivos CAD gerados e segredos permanecem ignorados pelo Git.
-Salvar uma chave não ativa o provedor automaticamente.
+Salvar uma chave não ativa o provedor automaticamente; o envio externo
+depende da opção visível **Usar IA DeepSeek**.
 
 O MCP não acessa o adaptador diretamente. Toda chamada passa pelo protocolo
 tipado, pela validação do `ToolRegistry`, pela fila da GUI e, nas mutações, pela

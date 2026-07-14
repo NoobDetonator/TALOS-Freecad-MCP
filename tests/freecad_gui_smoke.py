@@ -64,6 +64,7 @@ def inspect() -> None:
             "AICadConfigureApiKey",
         )
         remove_key = dock.findChild(QtWidgets.QPushButton, "AICadRemoveApiKey")
+        use_deepseek = dock.findChild(QtWidgets.QCheckBox, "AICadUseDeepSeek")
         assert all(
             widget is not None
             for widget in (
@@ -73,8 +74,10 @@ def inspect() -> None:
                 history,
                 configure_key,
                 remove_key,
+                use_deepseek,
             )
         )
+        assert use_deepseek.isChecked() is False
         session = default_session_store().load()
         bridge_client = TcpBridgeClient(session.endpoint)
         summary_request = BridgeRequest(
