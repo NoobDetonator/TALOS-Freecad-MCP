@@ -17,6 +17,7 @@ como registrados em `docs/milestones.md`.
 - **Estado do M3.2:** concluído, com 94 testes unitários e smokes reais.
 - **Estado do M3.3:** concluído, com 103 testes e benchmark local do seletor.
 - **Estado do M3.4:** concluído, com 110 testes e smokes reais.
+- **Estado do M3.5:** concluído, com 115 testes e execução real por plano aprovado.
 - **Capacidades atuais:** resumo, seleção, caixa, cilindro, validação e undo.
 - **IA atual:** até quatro rodadas, leituras retornam ao modelo e mutações encerram
   a descoberta sem execução automática.
@@ -623,7 +624,7 @@ Resultado registrado:
 - o comportamento foi coberto por mocks locais, 110 testes e smokes reais; não
   foi necessária chave, rede externa ou nova dependência para validar o marco.
 
-### M3.5 — Mutação única com plano imutável
+### M3.5 — Mutação única com plano imutável — concluído
 
 Entregas:
 
@@ -634,6 +635,21 @@ Entregas:
 
 Aceite: "crie uma caixa como o cilindro selecionado, mas 10% mais alta" pode usar
 leituras e propor a chamada correta; somente o plano exibido executa.
+
+Resultado registrado:
+
+- `ValidatedPlan` aceita exatamente uma chamada `modify` já validada pelo registro;
+- hash SHA-256 canônico cobre estado-base e todos os campos executáveis;
+- `ApprovalGrant` autoriza somente plano/hash/call ID exibidos, nasce no clique e
+  expira em 30 segundos;
+- alteração do plano, autorização diferente ou `DocumentStateToken` obsoleto
+  bloqueiam antes de qualquer handler;
+- `SingleMutationPlanExecutor` revalida argumentos/risco, executa uma vez, valida
+  o documento e exige avanço do estado;
+- o painel mostra ID, prefixo do hash e revisão-base, e cancelar não emite grant;
+- testes cobrem adulteração, expiração, stale state, chamada única e pós-condição;
+- o smoke FreeCAD real criou a peça pelo plano aprovado, validou e desfez;
+- nenhuma chave ou rede externa foi necessária para concluir o marco.
 
 ### M3.6 — Plano composto reversível
 
@@ -810,7 +826,7 @@ O marco de otimização estará concluído quando:
 ## 26. Orientação para retomada em outro chat
 
 Ao continuar, não começar aumentando o número de ferramentas nem alterando a
-ponte. M3.1 a M3.4 estão concluídos; implementar o M3.5 deste documento e seguir
+ponte. M3.1 a M3.5 estão concluídos; implementar o M3.6 deste documento e seguir
 os critérios de aceite em ordem. Qualquer atalho que introduza Python arbitrário,
 um registro paralelo ou aprovação ampla deve ser recusado mesmo que produza uma
 demonstração mais rápida.

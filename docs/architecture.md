@@ -207,6 +207,30 @@ exceção ou caminho interno entra no histórico do provedor.
 adaptador DeepSeek traduz esse histórico para o protocolo de tool calls e reutiliza
 um único `httpx.Client` durante o turno, evitando um novo handshake por rodada.
 
+## Plano imutável para uma mutação
+
+O M3.5 adiciona `ValidatedPlan`, `ApprovalGrant` e
+`SingleMutationPlanExecutor`, também sem dependência de Qt ou FreeCAD. Somente um
+`PlannedToolCall` registrado como `modify` pode ser congelado. O hash SHA-256
+canônico cobre ID do plano, `DocumentStateToken`, intenção, suposições, passos,
+ID da chamada, ferramenta, argumentos, risco e validações esperadas.
+
+Ao clicar em confirmar, a UI emite um `ApprovalGrant` em memória que contém o hash
+e o único `call_id` autorizado, origem `ui` e prazo monotônico padrão de 30
+segundos. O executor então:
+
+1. confere prazo, ID, hash e chamada autorizada;
+2. relê o snapshot e exige igualdade exata com o estado-base;
+3. revalida schema e risco no `ToolRegistry`;
+4. executa exatamente uma chamada com confirmação;
+5. valida o documento;
+6. relê o contexto e exige avanço do estado.
+
+Mudança manual, seleção diferente, hash alterado ou autorização expirada bloqueia
+antes do handler. O adaptador continua responsável pela transação e pela validação
+da própria geometria. O M3.5 não executa planos compostos nem repete uma mutação
+automaticamente em erro.
+
 ## Credenciais de provedor
 
 CredentialStore mantém identificadores de provedor separados das chaves e usa
@@ -281,7 +305,7 @@ clique do usuário. Repetir a request com o mesmo ID consulta o resultado.
 
 ## Próxima etapa técnica
 
-M3.1 a M3.4 foram concluídos. Seguir o M3.5 em
-`docs/ai-agent-optimization-plan.md`: substituir a autorização genérica de uma
-mutação por plano imutável, hash, estado-base e `ApprovalGrant`. Planos compostos
-continuam bloqueados até essa base passar nos critérios de aceite.
+M3.1 a M3.5 foram concluídos. Seguir o M3.6 em
+`docs/ai-agent-optimization-plan.md`: criar serviço compartilhado para planos
+compostos, pré-validação total, uma autorização por hash e rollback compensatório
+com verificação do estado restaurado.

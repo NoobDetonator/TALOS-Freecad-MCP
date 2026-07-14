@@ -24,6 +24,7 @@ O primeiro protótipo usa o FreeCAD como motor de modelagem, visualização e do
 - Benchmark do seletor: recall 20/20 e economia de 57,6% dos schemas no corpus v1.
 - Loop DeepSeek limitado executa leituras, devolve resultados e permite cancelar.
 - Memória de leitura permanece em RAM e é invalidada quando o estado CAD muda.
+- Mutação da IA usa plano imutável, hash, estado-base e autorização de curta duração.
 - Testes unitários, teste transacional no FreeCADCmd e fluxo MCP gráfico automatizado.
 - Instalação reproduzível e isolada para Windows.
 
@@ -102,9 +103,10 @@ rodadas controladas para ler o documento e revisar a resposta.
 
 Respostas de leitura podem usar o ToolRegistry imediatamente. Operações
 **modify**, como criar uma caixa, um cilindro ou desfazer, mostram intenção,
-plano, ferramenta
-e argumentos e só são executadas depois de **Confirmar operação**. Desmarcar a
-opção restaura o chat local fechado. O botão **Remover chave** apaga a credencial.
+plano, ferramenta, argumentos, ID, hash e revisão-base. O clique em **Confirmar
+operação** autoriza somente essa chamada exata e por poucos segundos. O documento
+é relido antes da execução; qualquer mudança invalida o plano. Desmarcar a opção
+restaura o chat local fechado. O botão **Remover chave** apaga a credencial.
 
 Durante uma consulta, o painel mostra se está preparando contexto, selecionando
 ferramentas, consultando o modelo, validando ou lendo o documento. **Cancelar
@@ -165,6 +167,12 @@ que a IA enxerga; nomes e argumentos retornados continuam sendo revalidados pelo
 `ToolRegistry`. Pedidos reconhecidos como tentativa de Python arbitrário, comando
 do sistema, macro, remoção de arquivos ou desvio de confirmação recebem somente
 ferramentas de leitura.
+
+Uma proposta de mutação DeepSeek vira `ValidatedPlan`. O hash cobre estado-base,
+intenção, passos, ferramenta e argumentos. `ApprovalGrant` é criado somente no
+clique, autoriza um único `call_id`, expira rapidamente e não contém segredo. O
+executor confere novamente hash, autorização, schema, risco e estado, executa uma
+única mutação transacional e valida o documento e o novo estado depois.
 
 ## Arquitetura
 

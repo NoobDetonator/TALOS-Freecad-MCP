@@ -12,6 +12,7 @@ from aicad.bridge.protocol import (
     BridgeResponseStatus,
 )
 from aicad.core.chat_commands import ChatCommand, format_tool_result, parse_chat_command
+from aicad.core.context import DocumentStateToken
 from aicad.core.tool_registry import ToolRisk
 from aicad.orchestration import (
     AgentSessionMemory,
@@ -21,10 +22,15 @@ from aicad.orchestration import (
     AgentTurnController,
     AgentTurnResult,
     AgentTurnStatus,
+    ApprovalGrant,
     AiOrchestrator,
     DeepSeekProvider,
     OrchestrationLimits,
     OrchestrationPlan,
+    PlanApprovalError,
+    PlanExecutionError,
+    SingleMutationPlanExecutor,
+    ValidatedPlan,
 )
 from aicad.orchestration.credentials import (
     CredentialStore,
@@ -118,7 +124,7 @@ def show_chat_panel() -> None:
     confirmation.hide()
 
     registry = get_tool_registry()
-    pending: list[ChatCommand | BridgeRequest] = []
+    pending: list[ChatCommand | BridgeRequest | ValidatedPlan] = []
     remote_confirmation_queue: list[BridgeRequest] = []
     bridge_controller: list[GuiBridgeController] = []
     credential_store = CredentialStore()
@@ -236,7 +242,7 @@ def show_chat_panel() -> None:
 
 
     def set_pending(
-        command: ChatCommand | BridgeRequest | None,
+        command: ChatCommand | BridgeRequest | ValidatedPlan | None,
     ) -> None:
         pending.clear()
         if command is not None:
@@ -347,12 +353,24 @@ def show_chat_panel() -> None:
             )
         return "<br>".join(sections)
 
+    def read_work_context() -> dict[str, Any]:
+        return registry.execute(
+            "cad.get_context_snapshot",
+            {"detail_level": "work", "max_objects": 25, "cursor": 0},
+        )
+
+    def describe_validated_plan(plan: ValidatedPlan) -> str:
+        return (
+            "<b>Plano imutável aguardando aprovação.</b><br>"
+            f"ID: <code>{escape(str(plan.plan_id))}</code><br>"
+            f"Hash: <code>{escape(plan.plan_hash[:16])}…</code><br>"
+            f"Estado-base: revisão {plan.base_state_token.revision}.<br>"
+            "Somente a chamada exibida e este estado exato serão aceitos."
+        )
+
     def request_deepseek_plan(text: str) -> None:
         try:
-            document_context = registry.execute(
-                "cad.get_context_snapshot",
-                {"detail_level": "work", "max_objects": 25, "cursor": 0},
-            )
+            document_context = read_work_context()
         except (KeyError, PermissionError, RuntimeError, ValueError):
             append_assistant(
                 "Não foi possível preparar o contexto do documento para a DeepSeek."
@@ -399,7 +417,7 @@ def show_chat_panel() -> None:
             finally:
                 if provider is not None:
                     provider.close()
-            ai_results.put(("turn", turn))
+            ai_results.put(("turn", (turn, document_context)))
 
         Thread(
             target=worker,
@@ -475,7 +493,13 @@ def show_chat_panel() -> None:
             refresh_security_status()
             show_next_remote_confirmation()
             return
-        if result_kind != "turn" or not isinstance(payload, AgentTurnResult):
+        if (
+            result_kind != "turn"
+            or not isinstance(payload, tuple)
+            or len(payload) != 2
+            or not isinstance(payload[0], AgentTurnResult)
+            or not isinstance(payload[1], dict)
+        ):
             credential_configured[0] = True
             append_assistant(
                 "A DeepSeek não respondeu com um plano válido. "
@@ -484,14 +508,15 @@ def show_chat_panel() -> None:
             refresh_security_status()
             show_next_remote_confirmation()
             return
+        turn_result, base_context = payload
         credential_configured[0] = True
         credential_vault_available[0] = True
         refresh_security_status()
-        if payload.status is AgentTurnStatus.CANCELLED:
+        if turn_result.status is AgentTurnStatus.CANCELLED:
             append_assistant("Consulta cancelada sem alterar o documento.")
             show_next_remote_confirmation()
             return
-        plan = payload.final_plan
+        plan = turn_result.final_plan
         if plan is None:
             append_assistant("A consulta terminou sem um plano utilizável.")
             show_next_remote_confirmation()
@@ -501,16 +526,28 @@ def show_chat_panel() -> None:
             show_next_remote_confirmation()
             return
         call = plan.tool_calls[0]
+        if call.risk is not ToolRisk.READ:
+            try:
+                base_state = DocumentStateToken.model_validate(
+                    base_context["state_token"]
+                )
+                validated_plan = ValidatedPlan.build(plan, base_state, registry)
+            except (KeyError, RuntimeError, ValueError):
+                append_assistant(
+                    "A mutação proposta não pôde ser congelada com segurança."
+                )
+                show_next_remote_confirmation()
+                return
+            append_assistant(describe_validated_plan(validated_plan))
+            set_pending(validated_plan)
+            return
         command = ChatCommand(
             message="Operação proposta pela DeepSeek.",
             tool_name=call.name,
             arguments=dict(call.arguments),
         )
-        if call.risk is ToolRisk.READ:
-            execute(command)
-            show_next_remote_confirmation()
-            return
-        set_pending(command)
+        execute(command)
+        show_next_remote_confirmation()
 
     def submit() -> None:
         text = prompt.toPlainText().strip()
@@ -538,6 +575,25 @@ def show_chat_panel() -> None:
         set_pending(None)
         if isinstance(operation, ChatCommand):
             execute(operation, confirmed=True)
+        elif isinstance(operation, ValidatedPlan):
+            try:
+                grant = ApprovalGrant.issue(operation)
+                result = SingleMutationPlanExecutor(
+                    registry,
+                    read_work_context,
+                ).execute(operation, grant)
+                append_assistant(
+                    format_tool_result(operation.call.name, result.tool_result)
+                )
+                append_assistant(
+                    "Plano imutável executado e pós-condição validada; "
+                    f"novo estado na revisão {result.state_after.revision}."
+                )
+                refresh_view(operation.call.name)
+            except (PlanApprovalError, PlanExecutionError, RuntimeError, ValueError) as exc:
+                append_assistant(
+                    "Plano não executado: " + escape(str(exc))
+                )
         elif bridge_controller:
             response = bridge_controller[0].resolve_confirmation(
                 operation.request_id,
@@ -555,6 +611,11 @@ def show_chat_panel() -> None:
         set_pending(None)
         if isinstance(operation, ChatCommand):
             append_assistant("Operação cancelada; o documento não foi alterado.")
+        elif isinstance(operation, ValidatedPlan):
+            append_assistant(
+                "Plano imutável cancelado; nenhuma autorização foi emitida e o "
+                "documento não foi alterado."
+            )
         elif bridge_controller:
             response = bridge_controller[0].resolve_confirmation(
                 operation.request_id,

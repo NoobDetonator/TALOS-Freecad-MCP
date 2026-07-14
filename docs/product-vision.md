@@ -68,6 +68,12 @@ cancelar; a memória é temporária e vinculada à revisão CAD. O controlador n
 executa mutações: ao encontrar uma, encerra a descoberta e entrega apenas a
 proposta para o fluxo de confirmação já existente.
 
+O M3.5 está concluído. Uma mutação proposta pela IA é congelada com hash e
+`DocumentStateToken`; o clique autoriza somente aquele plano e aquela chamada por
+um prazo curto. O executor recusa estado obsoleto, revalida tudo pelo registro,
+executa uma única transação e confere a pós-condição. Alterar silenciosamente o
+plano depois de exibido deixa de ser possível.
+
 ## Diferenciais pretendidos
 
 - operação local e privada;

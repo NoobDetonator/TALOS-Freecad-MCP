@@ -7,6 +7,14 @@ project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root / "src"))
 
 from aicad.adapters.freecad_adapter import FreeCadAdapter
+from aicad.application import build_cad_tool_registry
+from aicad.core.context import DocumentStateToken
+from aicad.orchestration import OrchestrationPlan, PlannedToolCall
+from aicad.orchestration.plans import (
+    ApprovalGrant,
+    SingleMutationPlanExecutor,
+    ValidatedPlan,
+)
 
 import FreeCAD as App
 
@@ -52,6 +60,44 @@ assert len(App.ActiveDocument.Objects) == 1
 assert App.ActiveDocument.Objects[0].Label == "SmokeTestBox"
 undo_result = adapter.undo()
 assert undo_result["undone"] is True
+assert len(App.ActiveDocument.Objects) == 0
+
+registry = build_cad_tool_registry(adapter)
+base_context = adapter.get_context_snapshot()
+proposed_plan = OrchestrationPlan(
+    intention="Criar caixa aprovada.",
+    assumptions=(),
+    steps=("Criar e validar uma caixa.",),
+    message="Plano transacional.",
+    tool_calls=(
+        PlannedToolCall(
+            call_id="smoke-plan-box-1",
+            name="cad.create_box",
+            arguments={
+                "length": 4,
+                "width": 5,
+                "height": 6,
+                "name": "ApprovedSmokeBox",
+            },
+            risk="modify",
+            requires_confirmation=True,
+        ),
+    ),
+)
+validated_plan = ValidatedPlan.build(
+    proposed_plan,
+    DocumentStateToken.model_validate(base_context["state_token"]),
+    registry,
+)
+execution = SingleMutationPlanExecutor(
+    registry,
+    adapter.get_context_snapshot,
+).execute(validated_plan, ApprovalGrant.issue(validated_plan))
+assert execution.tool_result["label"] == "ApprovedSmokeBox"
+assert execution.validation_result["valid"] is True
+assert execution.state_after.revision > execution.state_before.revision
+assert len(App.ActiveDocument.Objects) == 1
+assert adapter.undo()["undone"] is True
 assert len(App.ActiveDocument.Objects) == 0
 print("FREECAD_SMOKE_OK")
 App.closeDocument("AICadSmokeTest")

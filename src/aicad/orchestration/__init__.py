@@ -36,6 +36,16 @@ from aicad.orchestration.orchestrator import (
     ProviderUnavailableError,
 )
 from aicad.orchestration.provider import AiProvider, AiProviderError, ProviderResult
+from aicad.orchestration.plans import (
+    ApprovalGrant,
+    PlanApprovalError,
+    PlanExecutionError,
+    PlanExecutionResult,
+    SingleMutationPlanExecutor,
+    StalePlanError,
+    ValidatedPlan,
+    ValidatedPlanCall,
+)
 from aicad.orchestration.turn_controller import (
     AgentSessionMemory,
     AgentTurnCancellation,
@@ -60,6 +70,7 @@ __all__ = [
     "AgentTurnLimits",
     "AgentTurnResult",
     "AgentTurnStatus",
+    "ApprovalGrant",
     "CREDENTIAL_SERVICE",
     "CredentialStore",
     "CredentialStoreError",
@@ -73,6 +84,9 @@ __all__ = [
     "OrchestrationLimitError",
     "OrchestrationLimits",
     "OrchestrationPlan",
+    "PlanApprovalError",
+    "PlanExecutionError",
+    "PlanExecutionResult",
     "PlannedToolCall",
     "ProviderRequest",
     "ProviderAssistantMessage",
@@ -83,6 +97,10 @@ __all__ = [
     "ProviderToolDefinition",
     "ProviderToolResultMessage",
     "ProviderUnavailableError",
+    "SingleMutationPlanExecutor",
+    "StalePlanError",
     "TurnMetricsRecorder",
+    "ValidatedPlan",
+    "ValidatedPlanCall",
     "tool_definition_from_spec",
 ]
