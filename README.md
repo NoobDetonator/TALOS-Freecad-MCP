@@ -121,4 +121,7 @@ confirmação visual.
 Consulte [docs/architecture.md](docs/architecture.md),
 [docs/product-vision.md](docs/product-vision.md) e
 [docs/milestones.md](docs/milestones.md). O último contém o plano completo de
-marcos e o roteiro para retomar o projeto em outro computador ou chat.
+marcos e o roteiro para retomar o projeto em outro computador ou chat. A evolução
+detalhada do loop, contexto, seleção de ferramentas, planos compostos e desempenho
+está em
+[docs/ai-agent-optimization-plan.md](docs/ai-agent-optimization-plan.md).

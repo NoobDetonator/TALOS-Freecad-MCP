@@ -4,12 +4,17 @@ Este documento é o ponto de retomada do projeto em outro computador ou em outro
 chat. Ele registra o estado funcional, as decisões que não podem ser perdidas, o
 roteiro de desenvolvimento e os critérios de aceite de cada etapa.
 
+O detalhamento mais recente do M3 e da ordem técnica do M4 está em
+`docs/ai-agent-optimization-plan.md`. Esse plano acrescenta métricas, contexto
+versionado, seleção de ferramentas, loop controlado, aprovação por plano e
+rollback composto sem alterar as regras ou os marcos já concluídos.
+
 ## 1. Snapshot da transferência
 
 - **Data:** 14 de julho de 2026.
 - **Repositório privado:** `https://github.com/NoobDetonator/ai-cad-agents`.
 - **Branch de trabalho:** `main`.
-- **Commit funcional de referência:** `dd5b4f9` — `Add secure AI orchestration foundation`.
+- **Baseline funcional desta revisão:** `971df80` — `Add transactional cylinder tool`.
 - **Diretório usado no computador do trabalho:**
   `C:\Users\HRBASSIST55\Downloads\Ai-Cad Agents`.
 - **Ambiente validado:** Windows, FreeCAD portátil 1.1.1 e Python 3.11 fornecido
@@ -146,8 +151,8 @@ flowchart LR
 | M0 — Fundação | Concluído | Estrutura, Workbench, adaptador, registro e testes iniciais |
 | M1 — Chat local seguro | Concluído | Painel funcional, caixa transacional, confirmação e registro compartilhado |
 | M2 — Ponte MCP–GUI | Concluído | Comunicação local segura e execução na thread Qt |
-| M3 — Orquestrador de IA | Em andamento | DeepSeek opcional com plano seguro de uma rodada |
-| M4 — Modelagem mecânica básica | Em andamento | Caixa e cilindro paramétricos seguros |
+| M3 — Orquestrador de IA | Em andamento | Contexto, seleção de ferramentas e loop seguro e mensurável |
+| M4 — Modelagem mecânica básica | Em andamento | Ferramentas priorizadas pelo benchmark e receitas seguras |
 | M5 — Histórico e auditoria | Planejado | Registro persistente de planos, confirmações e resultados |
 | M6 — Validação e exportação | Planejado | Regras de fabricação e exportações controladas |
 | M7 — Empacotamento e experiência | Planejado | Instalação, atualização e uso diário mais simples |
@@ -276,6 +281,8 @@ suíte passa. Não existe endpoint externo, Python arbitrário ou atalho direto 
 adaptador.
 
 ## 9. M3 — Orquestrador de IA — em andamento
+
+Plano detalhado de execução: `docs/ai-agent-optimization-plan.md`.
 
 ### Dependência
 
@@ -420,7 +427,7 @@ git log -3 --oneline
 ```
 
 Confirmar que a branch é `main`, que não há mudanças locais inesperadas e que o
-commit `f90fa66` ou um commit posterior está presente.
+commit `971df80` ou um commit posterior está presente.
 
 ### Ler antes de alterar
 
@@ -430,7 +437,8 @@ Ler integralmente:
 2. `README.md`;
 3. `docs/architecture.md`;
 4. `docs/product-vision.md`;
-5. este `docs/milestones.md`.
+5. este `docs/milestones.md`;
+6. `docs/ai-agent-optimization-plan.md`.
 
 ### Preparar o ambiente novo
 
@@ -554,16 +562,17 @@ Quero continuar o projeto AI CAD Workbench do repositório privado
 https://github.com/NoobDetonator/ai-cad-agents.
 
 Antes de alterar qualquer coisa, leia integralmente AGENTS.md, README.md e todos
-os arquivos da pasta docs, com atenção especial a docs/milestones.md. Verifique
-o Git, preserve mudanças existentes e execute scripts/testar.ps1 para confirmar
-a base.
+os arquivos da pasta docs, com atenção especial a docs/milestones.md e
+docs/ai-agent-optimization-plan.md. Verifique o Git, preserve mudanças existentes
+e execute scripts/testar.ps1 para confirmar a base.
 
-O commit remoto de referência é f90fa66. Na árvore atual, o Workbench, o chat
-local seguro, a caixa transacional, undo, o ToolRegistry compartilhado e a ponte
-MCP–GUI autenticada já funcionam e estão testados. O próximo marco recomendado é
-M3: criar uma interface de provedor independente, manter chamadas estruturadas e
-usar exatamente a mesma fila, validação e confirmação já exercitadas pelo chat e
-pelo MCP.
+O baseline desta revisão é 971df80 ou um commit posterior. Na árvore atual, o
+Workbench, o chat local seguro, caixa e cilindro transacionais, undo, ToolRegistry
+compartilhado, ponte MCP–GUI autenticada e planejamento opcional com DeepSeek já
+funcionam e estão testados. A DeepSeek ainda usa uma rodada e uma ferramenta. O
+próximo marco recomendado é M3.1 em docs/ai-agent-optimization-plan.md: criar a
+baseline de benchmark e os envelopes estruturados antes de ampliar o catálogo ou
+habilitar novas mutações.
 
 Mantenha o FreeCAD como adaptador, não crie execução arbitrária de Python, não
 salve credenciais no projeto e faça toda mutação de forma transacional, validada

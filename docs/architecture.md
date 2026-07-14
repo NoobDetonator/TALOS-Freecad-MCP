@@ -182,7 +182,9 @@ clique do usuário. Repetir a request com o mesmo ID consulta o resultado.
 
 ## Próxima etapa técnica
 
-Adicionar o loop iterativo controlado para que resultados de leitura possam
-voltar ao modelo, com cancelamento explícito, orçamento de rodadas e auditoria.
-Antes disso, ampliar o catálogo mecânico uma ferramenta por vez, mantendo schemas
-neutros, confirmação de mutações e testes transacionais no FreeCAD.
+Seguir o plano detalhado em `docs/ai-agent-optimization-plan.md`: primeiro medir a
+baseline e definir resultados estruturados; depois criar contexto versionado,
+seleção local de ferramentas e um loop iterativo somente leitura. Mutações com
+planos imutáveis e planos compostos entram somente depois dessas bases passarem
+nos critérios de aceite. O catálogo mecânico cresce orientado pelo benchmark, uma
+ferramenta segura por vez.
