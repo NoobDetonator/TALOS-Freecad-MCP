@@ -604,7 +604,17 @@ Entregue:
   plano confirmado → verificar → exportar) e solução de problemas;
 - handshake verificado com um cliente MCP real por stdio: inicialização,
   9 ferramentas MCP, catálogo com 30 ferramentas CAD (incluindo
-  `cad.export_stl`/`cad.export_step`) e 3 receitas listadas.
+  `cad.export_stl`/`cad.export_step`) e 3 receitas listadas;
+- **teste de ponta a ponta com agente externo real executado em 14 de julho
+  de 2026**: uma sessão do Claude Code conectada pelo `.mcp.json` modelou um
+  trem de engrenagens de dupla redução 12:1 — quatro engrenagens involutas
+  (módulo 2, 15/45/15/60 dentes), empilhamento no mesmo eixo com offset em Z,
+  distâncias entre centros corretas (60 e 75 mm), três eixos e caixa de
+  suporte escavada por booleana — com confirmação visual de cada plano no
+  painel, documento validado sem erros e captura da vista via
+  `aicad://view/{capture_id}`. O fluxo excedeu o roteiro mínimo (placa
+  furada); falta apenas exercitar a perna final de exportação STL/STEP na
+  mesma sessão de agente.
 
 Pendente:
 
@@ -614,9 +624,9 @@ Pendente:
 2. Mensagens de `pending_confirmation` e de erro da ponte orientam o agente
    sobre o que dizer ao usuário (ex.: "aguarde a confirmação no painel do
    FreeCAD").
-3. Roteiro de teste manual cumprido: agente externo modela uma peça do nicho
-   (placa furada ou flange) do zero até o STL, com confirmações no painel e
-   FreeCAD aberto.
+3. Fechar a perna de exportação do teste de ponta a ponta: o agente externo
+   já modelou uma montagem real com confirmações no painel; falta o mesmo
+   fluxo terminar em um STL/STEP no disco solicitado pelo usuário.
 
 ### M6.3 — Feedback para o agente
 
