@@ -20,6 +20,10 @@ O M5 entrega um núcleo independente de FreeCAD, Qt, MCP e provedor:
 - integração com chat local, IA, MCP, planos simples e planos compostos;
 - consulta e exportação pelo mesmo `ToolRegistry` usado para operações CAD.
 
+Esse contrato permanece vigente na baseline M0–M7. As ferramentas adicionadas em
+M6 e M7 — inclusive documentos, modelagem avançada e exportação STL/STEP — usam a
+mesma sessão e a mesma trilha de auditoria. Não há próximo marco automático.
+
 `AuditService` é criado uma vez por processo e compartilha seu `session_id` com a
 sessão autenticada da ponte. Uma ação é persistida antes de entrar na fila ou
 aguardar confirmação; sua revisão avança quando a autorização é decidida e quando
@@ -135,7 +139,8 @@ terminal no arquivo produzido.
 
 ## Aceite
 
-A suíte cobre contrato, redaction, limites, revisões, retenção, exportação,
+A suíte atual cobre contrato, redaction, limites, revisões, retenção, exportação,
 aprovação manual/automática, planos e MCP sem FreeCAD. O smoke gráfico cria e
 desfaz objetos por chat e MCP, executa plano composto, consulta o histórico e
-exporta o bundle no FreeCAD real, verificando commits e undos relacionados.
+exporta o bundle no FreeCAD 1.1.1 real, instalado no Windows, verificando commits
+e undos relacionados.

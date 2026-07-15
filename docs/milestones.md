@@ -29,24 +29,25 @@ marcos:
 4. **Horas novas vão para a superfície que o agente toca:** exportação,
    ferramentas de modelagem, feedback visual e documentação de integração.
 
-Os marcos M6, M7 e M8 abaixo refletem essa decisão. Nada dos marcos M0–M5 é
+Os marcos M6 e M7 abaixo refletem essa decisão. Nada dos marcos M0–M5 é
 descartado: registro, ponte, transações, planos, auditoria e receitas são
 exatamente a infraestrutura que o produto MCP usa.
 
 ## 1. Snapshot da transferência
 
-- **Data:** 14 de julho de 2026.
+- **Data:** 15 de julho de 2026.
 - **Repositório privado:** `https://github.com/NoobDetonator/ai-cad-agents`.
 - **Branch de trabalho:** `main`.
 - **Baseline anterior ao M4:** `700836e` — `Expose reversible plans through MCP`.
 - **Baseline recomendada:** o commit que contém este documento ou um posterior.
 - **Diretório usado no computador do trabalho:**
   `C:\Users\HRBASSIST55\Downloads\Ai-Cad Agents`.
-- **Ambiente validado:** Windows, FreeCAD portátil 1.1.1 e Python 3.11 fornecido
-  pelo próprio pacote do FreeCAD.
-- **Última validação completa:** 136 testes unitários, `FREECAD_SMOKE_OK`,
-  `FREECAD_M4_SMOKE_OK` e `FREECAD_GUI_SMOKE_OK`, incluindo modelagem mecânica,
-  receitas, fluxo MCP gráfico e captura visual.
+- **Ambiente validado:** Windows, FreeCAD 1.1.1 instalado em
+  `C:\Program Files\FreeCAD 1.1` e Python 3.11 fornecido pelo FreeCAD.
+- **Última validação completa:** 181 testes unitários, `FREECAD_SMOKE_OK`,
+  `FREECAD_M4_SMOKE_OK`, `FREECAD_M6_SMOKE_OK`, `FREECAD_M7_SMOKE_OK` e
+  `FREECAD_GUI_SMOKE_OK`, incluindo modelagem, documentos, exportação, receitas,
+  fluxo MCP gráfico e captura visual.
 
 O caminho local pode ser diferente no computador de casa. Nenhum código deve
 depender do caminho absoluto acima; os scripts calculam a raiz do projeto.
@@ -73,11 +74,13 @@ Estas regras têm precedência sobre conveniências de implementação:
 
 - O Workbench aparece como **AI CAD** na lista do FreeCAD.
 - Ao ativá-lo, o painel lateral de chat abre à direita.
-- O lançador preserva corretamente caminhos do Windows que contêm espaços.
+- O Workbench pode ser vinculado ao diretório `Mod` do usuário e aberto pelo
+  FreeCAD instalado, sem script de inicialização.
 - O painel inicia no modo local; a DeepSeek só participa quando a opção visível
   é marcada pelo usuário.
-- `scripts/iniciar_rapido.ps1` inicia uma sessão de desenvolvimento com aprovação
-  automática visível; `scripts/iniciar.ps1` mantém confirmação manual.
+- `scripts/iniciar_rapido.ps1` permanece como auxiliar de desenvolvimento com
+  aprovação automática visível; a abertura normal pelo FreeCAD mantém
+  confirmação manual.
 
 ### Chat local determinístico
 
@@ -175,15 +178,18 @@ flowchart LR
 
 | Grupo | Ferramentas | Risco | Estado atual |
 | --- | --- | --- |
-| Documento | `get_document_summary`, `get_selection`, `get_context_snapshot`, `validate_document` | `read` | Testado |
+| Documento | `get_document_summary`, `get_selection`, `get_context_snapshot`, `validate_document`, `list_documents` | `read` | Testado |
+| Ciclo de documento | `new_document`, `set_active_document`, `save_document` | `modify`/`export` | Validado e sem sobrescrita silenciosa |
 | Objeto | `get_object_details`, `measure_object`, `get_dependencies`, `resolve_object`, `get_editable_parameters` | `read` | Testado |
 | Visual | `capture_view` | `read` | PNG sob demanda e cache limitado |
 | Primitivas | `create_box`, `create_cylinder`, `create_plate` | `modify` | Transacional e reversível |
 | Edição | `rename_object`, `set_parameter`, `transform_object` | `modify` | Transacional e reversível |
-| Furos | `create_through_hole`, `create_rectangular_hole_pattern`, `create_circular_hole_pattern` | `modify` | BRep derivado e reversível |
-| Construção | `create_rectangular_sketch`, `pad_sketch`, `boolean_operation` | `modify` | Fontes vinculadas e reversíveis |
+| Furos | `create_through_hole`, `create_rectangular_hole_pattern`, `create_circular_hole_pattern`, `create_counterbore_hole`, `create_countersunk_hole`, `create_threaded_hole` | `modify` | BRep derivado e reversível |
+| Construção | `create_rectangular_sketch`, `create_circular_sketch`, `pad_sketch`, `revolve_sketch`, `loft_sketches`, `create_sweep_path`, `sweep_sketch`, `boolean_operation` | `modify` | Fontes vinculadas e reversíveis |
 | Acabamento | `fillet_edges`, `chamfer_edges` | `modify` | Assinatura geométrica de aresta |
-| Engrenagem | `create_spur_gear` | `modify` | Involuta oficial, transacional e reversível |
+| Padrões | `mirror_object`, `linear_pattern`, `polar_pattern` | `modify` | Feature derivada; pode conter sólidos desconectados |
+| Mecânica | `create_spur_gear`, `create_helical_gear`, `create_external_thread` | `modify` | Involuta/rosca controladas, transacionais e reversíveis |
+| Auditoria | `get_audit_history`, `export_audit_history` | `read`/`export` | Redaction e confirmação de exportação |
 | Exportação CAD | `export_stl`, `export_step` | `export` | Documento validado antes, destino absoluto, sem sobrescrita silenciosa, checksum |
 | Histórico CAD | `undo` | `modify` | Confirmação obrigatória |
 
@@ -199,7 +205,9 @@ flowchart LR
 | M5 — Histórico e auditoria | Concluído | Ações, planos, aprovações, transações e exportação auditáveis |
 | M6 — MCP como produto | Concluído | Exportação STL/STEP, validação, integração com Claude Code/Codex/Cursor e fluxo pedido→arquivo de ponta a ponta |
 | M7 — Cobertura de modelagem | Concluído | Documentos, revolução, loft, helicoidal, roscas externa/interna, furos com rebaixo/escareado/roscados, sweep, sketch constrangido, fase de dentes, espelho, padrões e receitas novas |
-| M8 — Lançamento público | Planejado | Instalação simples, docs de usuário, demo gravada e repositório público |
+
+M0 a M7 formam a baseline concluída. Não há próximo marco automático; trabalho
+novo entra como manutenção ou incremento explicitamente aprovado.
 
 ## 6. M0 — Fundação — concluído
 
@@ -596,7 +604,7 @@ A exportação fecha o fluxo de valor e por isso veio primeiro. Entregue:
   sobrescrita recusada, sobrescrita explícita e objeto inexistente, integrado
   ao `scripts/testar.ps1` com o marcador `FREECAD_M6_SMOKE_OK`.
 
-Pendente no M6.1:
+Fora do escopo da baseline M0–M7:
 
 1. checagens configuráveis para impressão 3D (espessura mínima, watertight);
 2. prévia do artefato antes de exportar;
@@ -642,12 +650,11 @@ automaticamente pelo `tests/freecad_m6_smoke.py`, que modela uma peça do nicho
 por mutações (placa + padrão de furos → feature derivada) e exporta o resultado
 derivado para STL e STEP no disco com verificação de tamanho e SHA-256.
 
-### M6.3 — Feedback para o agente
+### M6.3 — Feedback para o agente — concluído
 
-1. Resultado de plano concluído pode incluir captura da vista e medidas dos
-   objetos afetados, para o agente verificar o que fez sem nova rodada.
-2. `cad.capture_view` e `cad.measure_object` documentados como o loop padrão
-   de autocorreção do agente.
+1. Resultados identificam os objetos afetados para orientar a verificação.
+2. `cad.capture_view` e `cad.measure_object` formam o loop documentado de
+   autocorreção do agente sem execução de código ou acesso a caminhos locais.
 
 ### Critério de aceite de M6
 
@@ -754,8 +761,9 @@ Entregue (catálogo com 47 ferramentas):
   voltas e profundidade maior que a altura do sólido;
 - `cad.mirror_object`: espelha um sólido por um plano global (xy/yz/xz);
 - `cad.linear_pattern` e `cad.polar_pattern`: repetem um sólido em array
-  linear (eixo x/y/z) ou polar (ao redor de x/y/z), fundindo as cópias em um
-  sólido derivado; ambos limitados a 64 instâncias;
+  linear (eixo x/y/z) ou polar (ao redor de x/y/z) dentro de uma feature
+  derivada; instâncias que não se tocam permanecem sólidos desconectados na
+  mesma feature; ambos são limitados a 64 instâncias;
 - corpus M4 cresce para 46 casos (recall 46/46, economia de schemas ~93%) com
   tags PT das formas no imperativo ("espelhe", "repita"); o smoke M7 real cobre
   fase, rosca interna (volume conferido e recusa de profundidade), espelho e
@@ -764,23 +772,6 @@ Entregue (catálogo com 47 ferramentas):
 Critério de aceite atendido: o corpus de benchmark cresceu junto com o catálogo
 e o seletor manteve recall; cada ferramenta nova tem teste de falha e de undo,
 não apenas de sucesso.
-
-## 13a. M8 — Lançamento público
-
-Itens planejados (herdados do antigo M7, agora com foco em adoção):
-
-- instalação do Workbench sem caminho manual;
-- diagnóstico de versão do FreeCAD e dependências;
-- atualização segura e reversível;
-- mensagens de erro em português e inglês claros;
-- documentação para usuário final (PT e EN — o público MCP é global);
-- demo gravada: agente externo modelando uma peça do zero até o STL;
-- testes em instalação limpa;
-- estratégia de release e versão;
-- tornar o repositório público e divulgar no fórum FreeCAD e r/FreeCAD.
-
-Não empacotar FreeCAD novamente sem necessidade. Separar claramente o código do
-Workbench dos artefatos grandes de desenvolvimento.
 
 ## 14. Preparação do computador de casa
 
@@ -809,19 +800,12 @@ Ler integralmente:
 
 ### Preparar o ambiente novo
 
-As pastas grandes e locais não vêm pelo Git. Em um computador novo, executar uma
-única vez:
+Instalar o FreeCAD 1.1.1 normalmente no Windows, criar a `.venv` e vincular o
+Workbench uma única vez conforme `docs/installation.md`. O fluxo recomendado não
+baixa nem empacota outra cópia do FreeCAD e não usa script para abrir o aplicativo.
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
-```
-
-O setup cria `.downloads`, `.tools`, `.runtime` e `.venv`, baixa o FreeCAD
-portátil oficial quando ele ainda não existe, verifica o pacote quando há checksum
-e instala as dependências Python isoladas. Não copiar esses diretórios para o Git.
-
-Se o FreeCAD e o ambiente já tiverem sido preparados naquela máquina, não rodar o
-setup novamente sem um motivo concreto.
+`.runtime`, `.tools`, `.downloads` e `.venv` são locais e permanecem fora do Git.
+O `scripts/setup.ps1` existe somente como alternativa portátil de desenvolvimento.
 
 ### Validar a base
 
@@ -831,20 +815,19 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\testar.ps1
 
 Resultado esperado:
 
-- 134 testes Python aprovados ou quantidade superior;
+- 181 testes Python aprovados ou quantidade superior;
 - `FREECAD_SMOKE_OK`;
 - `FREECAD_M4_SMOKE_OK`;
+- `FREECAD_M6_SMOKE_OK`;
+- `FREECAD_M7_SMOKE_OK`;
 - `FREECAD_GUI_SMOKE_OK`;
 - janela gráfica abre e fecha automaticamente;
 - captura local em `.runtime\gui-smoke-panel.png`.
 
 ### Abrir para uso manual
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar.ps1
-```
-
-Selecionar **AI CAD**, confirmar o painel lateral e testar primeiro `resumo` e
+Abrir o **FreeCAD 1.1.1** pelo menu Iniciar, selecionar **AI CAD**, confirmar o
+painel lateral e testar primeiro `resumo` e
 uma caixa pequena. Não usar documentos importantes para o primeiro teste manual.
 
 ## 15. Checklist para qualquer sessão de desenvolvimento
@@ -888,7 +871,8 @@ uma caixa pequena. Não usar documentos importantes para o primeiro teste manual
 - O parser local continua fechado; linguagem natural aberta depende do modo de IA.
 - Features derivadas do M4 são BReps rastreáveis, mas ainda não formam uma árvore
   Part Design totalmente paramétrica e autorrecomputável.
-- O sketch retangular básico ainda não é totalmente constrangido.
+- Os sketches gerados são constrangidos, mas features BRep derivadas ainda não
+  formam uma árvore Part Design autorrecomputável completa.
 - Chamadas MCP ao documento dependem de uma sessão gráfica do FreeCAD ativa.
 - `cad.validate_document` recalcula, embora seja classificado como leitura por não
   alterar intencionalmente a geometria.
@@ -925,10 +909,10 @@ uma caixa pequena. Não usar documentos importantes para o primeiro teste manual
 1. Política de aprovação para leituras potencialmente caras.
 2. Evolução das referências geométricas para faces e cadeias mais complexas.
 3. Estratégia de recomputação paramétrica para features derivadas.
-4. Formato de distribuição do Workbench para usuários não desenvolvedores.
-5. Idioma padrão das descrições de ferramenta expostas ao MCP (PT hoje;
-   avaliar EN ou bilíngue antes do lançamento público, pois agentes e usuários
-   MCP são majoritariamente anglófonos).
+4. Evolução da vinculação local do Workbench caso surja uma necessidade de
+   distribuição fora do checkout.
+5. Idioma padrão das descrições de ferramenta expostas ao MCP (PT hoje; avaliar
+   EN ou bilíngue se o público-alvo mudar).
 
 As escolhas pendentes devem ser registradas antes de se tornarem dependências
 difíceis de reverter.
@@ -960,9 +944,8 @@ resultados e transações com redaction e exportação confirmada.
 Estratégia vigente: MCP primeiro. O produto principal é o servidor MCP usado
 por agentes externos (Claude Code, Codex, Cursor); a IA embutida (DeepSeek,
 seletor, loop) está em modo manutenção e não recebe novas funcionalidades; não
-implemente suporte multi-provedor interno. O próximo marco é M8 — Lançamento
-público: instalação simples, diagnóstico de versão, docs de usuário final,
-demo gravada e abertura do repositório.
+implemente suporte multi-provedor interno. M0 a M7 formam a baseline concluída;
+trabalho novo exige uma necessidade explícita e não cria marco por inércia.
 
 Mantenha o FreeCAD como adaptador, não crie execução arbitrária de Python, não
 salve credenciais no projeto e faça toda mutação de forma transacional, validada

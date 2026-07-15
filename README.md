@@ -46,24 +46,23 @@ links para os objetos de origem e são reversíveis. Nesta fase elas são result
 BRep controlados, não uma árvore Part Design totalmente paramétrica que se atualiza
 automaticamente após toda mudança na origem.
 
-## Preparação e abertura
+## Instalação e abertura
 
-Em uma máquina ainda não preparada:
+O fluxo normal usa o **FreeCAD 1.1.1 instalado no Windows**. Neste computador ele
+está em `C:\Program Files\FreeCAD 1.1`; não é necessário baixar outra cópia nem
+usar um script para abrir o aplicativo.
 
-```powershell
-.\scripts\setup.ps1
-```
+Uma única vinculação coloca `src\freecad\AiCad` em
+`%APPDATA%\FreeCAD\v1-1\Mod\AiCad`. O Workbench descobre automaticamente a raiz do
+checkout e usa `src` e a `.venv` do projeto. O procedimento completo está em
+[docs/installation.md](docs/installation.md).
 
-Se o ambiente já existe, não execute o setup novamente e não baixe o FreeCAD.
-Abra o projeto com:
+Depois da vinculação, abra o FreeCAD normalmente pelo menu Iniciar e selecione o
+Workbench **AI CAD**. O painel abrirá à direita e publicará a ponte MCP.
 
-```powershell
-.\scripts\iniciar.ps1
-```
-
-O Workbench **AI CAD** aparecerá na lista e abrirá o painel à direita.
-
-Para desenvolvimento repetitivo, abra pelo lançador rápido:
+Os scripts `setup.ps1` e `iniciar.ps1` permanecem somente como auxiliares para o
+ambiente portátil de desenvolvimento. Para testes descartáveis com aprovação
+automática visível, ainda existe:
 
 ```powershell
 .\scripts\iniciar_rapido.ps1
@@ -225,7 +224,8 @@ schemas.
 - O MCP usa TCP loopback autenticado e transfere execução para a thread Qt.
 - Toda mutação de IA ou MCP exige confirmação explícita.
 - A única exceção é o modo de desenvolvimento iniciado explicitamente por
-  `iniciar_rapido.ps1`; ele emite aprovações automáticas somente naquela sessão.
+  `iniciar_rapido.ps1`; ele emite aprovações automáticas somente naquela sessão
+  descartável. A abertura normal pelo FreeCAD mantém confirmação manual.
 - Não existe ferramenta de Python arbitrário, macro ou shell.
 - Chaves permanecem no cofre do Windows.
 - `.runtime`, `.tools`, `.downloads`, `.venv`, capturas, CAD gerado e segredos
@@ -234,13 +234,14 @@ schemas.
 ## Conectar um agente externo
 
 O repositório traz um `.mcp.json` pronto: abrindo o Claude Code nesta pasta,
-o servidor `ai-cad` é oferecido automaticamente. Com o FreeCAD aberto por
-`.\scripts\iniciar.ps1`, o agente lê o documento, propõe planos que você
-confirma no painel e exporta STL/STEP. O passo a passo para Claude Code,
+o servidor `ai-cad` é oferecido automaticamente. Com o FreeCAD instalado aberto
+normalmente e o Workbench **AI CAD** ativo, o agente lê o documento, propõe planos
+que você confirma no painel e exporta STL/STEP. O passo a passo para Claude Code,
 Codex e Cursor está em [docs/mcp-integration.md](docs/mcp-integration.md).
 
 ## Documentação
 
+- [Instalação com o FreeCAD do Windows](docs/installation.md)
 - [Integração MCP com agentes externos](docs/mcp-integration.md)
 - [Arquitetura](docs/architecture.md)
 - [Visão do produto](docs/product-vision.md)
@@ -248,7 +249,7 @@ Codex e Cursor está em [docs/mcp-integration.md](docs/mcp-integration.md).
 - [Plano de otimização do agente](docs/ai-agent-optimization-plan.md)
 - [Contrato e armazenamento de auditoria](docs/audit.md)
 
-## Roteiro
+## Estado dos marcos
 
 Estratégia vigente: **MCP primeiro** (decisão de 14/07/2026, detalhada em
 `docs/milestones.md` e `docs/product-vision.md`).
@@ -259,8 +260,10 @@ Estratégia vigente: **MCP primeiro** (decisão de 14/07/2026, detalhada em
 - **M7 — Cobertura de modelagem** (concluído): documentos, revolução, loft,
   sweep, sketch constrangido, furos com rebaixo/escareado/roscados,
   engrenagens com fase, rosca interna, espelhamento, padrões e novas receitas.
-- **M8 — Lançamento público** (próximo): instalação simples, docs de usuário,
-  demo gravada e abertura do repositório.
+
+M0 a M7 formam a baseline concluída. Não existe um próximo marco pré-definido;
+correções e incrementos novos devem partir de uma necessidade
+concreta, preservar a arquitetura segura e atualizar testes e documentação.
 
 A IA embutida (modo DeepSeek, seletor e loop) está em modo manutenção: segue
 funcionando e testada, mas as horas novas vão para o MCP. Não haverá suporte

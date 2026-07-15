@@ -1,4 +1,4 @@
-# Arquitetura inicial
+# Arquitetura atual
 
 ## Princípio
 
@@ -22,6 +22,19 @@ A IA planeja, a camada de ferramentas autoriza, o FreeCAD executa e o validador 
 8. **Validação** — recomputa e verifica estados de erro e validade das formas.
 9. **Avaliação offline** — corpus versionado e runner medem compreensão e
    segurança sem FreeCAD ou provedor.
+
+## Carregamento pelo FreeCAD instalado
+
+O uso normal abre o FreeCAD 1.1.1 instalado pelo Windows. Um junction em
+`%APPDATA%\FreeCAD\v1-1\Mod\AiCad` aponta para `src/freecad/AiCad`. Durante o registro
+do Workbench, `InitGui.py` resolve o destino do próprio módulo, encontra a raiz do
+checkout e acrescenta `src` e `.venv\Lib\site-packages` ao `sys.path` somente
+quando esses diretórios existem.
+
+`AICAD_PROJECT_ROOT` continua aceito como override explícito para testes e para os
+lançadores portáteis, mas não é necessário no uso diário. A descoberta só aceita
+uma raiz que contenha `pyproject.toml` e `src/aicad`; ela não baixa dependências,
+não executa código gerado e não altera a política do `ToolRegistry`.
 
 ## Protocolo da ponte local
 
@@ -284,8 +297,9 @@ O adaptador usa uma única fronteira transacional que:
 Furos, padrões, pad, booleanas, filetes e chanfros geram features BRep derivadas
 com `SourceObjects` e `FeatureKind`. Essa rastreabilidade ajuda inspeção e undo,
 mas não promete recomputação paramétrica automática de toda a cadeia nesta fase.
-O sketch retangular também é propositalmente simples e ainda não é totalmente
-constrangido.
+No corte original do M4, o sketch retangular ainda não era totalmente
+constrangido. O M7 substituiu esse comportamento por sketches retangular e
+circular totalmente constrangidos; o registro e o adaptador continuam separados.
 
 Filete e chanfro não recebem `Edge1`, `Edge2` ou outro índice topológico externo.
 `cad.get_object_details` calcula uma assinatura a partir do tipo de curva,
@@ -299,9 +313,9 @@ compiladores confiáveis. Ele não executa código nem possui handlers paralelos
 produz somente `PlannedToolCall` que é revalidado pelo registro e submetido ao
 mesmo `PlanService`.
 
-As receitas iniciais são placa de fixação, flange e pad retangular. Cada uma
-valida previamente relações geométricas impossíveis, como furos fora da peça, e
-produz um plano composto legível antes da confirmação.
+O catálogo atual contém placa de fixação, flange, pad retangular, eixo escalonado
+e polia plana. Cada receita valida previamente relações geométricas impossíveis,
+como furos fora da peça, e produz um plano composto legível antes da confirmação.
 
 `cad.capture_view` salva PNG somente sob demanda no cache local do usuário. O
 contrato retorna um UUID opaco e `aicad://view/{capture_id}`; nunca retorna o
@@ -309,7 +323,7 @@ caminho. O cache aceita até 8 MiB por imagem, mantém no máximo oito capturas 
 fica fora do repositório.
 
 O MCP projeta esses serviços como `available_cad_recipes`, `submit_cad_recipe`,
-recurso `aicad://recipes`, template de imagem e três prompts guiados. Ferramentas,
+recurso `aicad://recipes`, template de imagem e cinco prompts guiados. Ferramentas,
 receitas, chat e MCP continuam convergindo no mesmo registro e no mesmo executor.
 
 Após o fechamento do M4, `cad.create_spur_gear` elevou o catálogo a 26 ferramentas.
@@ -353,7 +367,7 @@ uma única operação pendente volta a controlar os botões de confirmar e cance
 
 ## Regra de dependência
 
-`aicad.core` não importa FreeCAD ou Qt. A UI, o MCP e os provedores dependem do núcleo. Somente o pacote `aicad.adapters.freecad` conversa diretamente com o FreeCAD: `freecad_adapter.py` expõe o `FreeCadAdapter` compondo mixins por domínio (base, context, edits, sketches, features, sweeps, mechanical, documents, export), e o caminho de import público continua `aicad.adapters.freecad_adapter`.
+`aicad.core` não importa FreeCAD ou Qt. A UI, o MCP e os provedores dependem do núcleo. Somente o pacote `aicad.adapters.freecad` conversa diretamente com o FreeCAD: `freecad_adapter.py` expõe o `FreeCadAdapter` compondo mixins por domínio (base, context, edits, sketches, features, sweeps, mechanical, patterns, documents, export), e o caminho de import público continua `aicad.adapters.freecad_adapter`.
 
 ## Fluxo atual do chat
 
@@ -377,7 +391,8 @@ status. Quando uma mutação local, um plano da IA ou uma solicitação MCP entr
 fila normal de confirmação, um timer Qt aciona o mesmo `confirm_pending` que o
 botão usaria.
 
-Esse modo não chama handlers diretamente, não altera o risco da ferramenta e não
+Esse modo é auxiliar de desenvolvimento; a abertura normal pelo FreeCAD instalado
+não o ativa. Ele não chama handlers diretamente, não altera o risco da ferramenta e não
 pode ser ativado pelo texto do modelo. `ApprovalGrant`, validação de estado,
 transação, pós-condição e rollback continuam no caminho. O lançador normal e a
 suíte automatizada forçam o modo desligado. A preferência não é persistida.
@@ -446,8 +461,14 @@ produto continua testável sem FreeCAD e o adaptador permanece a única camada q
 conhece sua API. O formato e as decisões de retenção estão detalhados em
 `docs/audit.md`.
 
-## Próxima etapa técnica
+## Baseline técnica atual
 
-M3.1 a M3.6, M4.1 a M4.3 e M5 foram concluídos. A próxima etapa é M6: validação
-de fabricação e exportações CAD controladas, mantendo o mesmo registro e trilha
-de auditoria.
+M0 a M7 estão concluídos. O catálogo compartilhado possui 47 ferramentas CAD,
+cinco receitas, nove ferramentas MCP, dois Resources e cinco Prompts. M6 fechou a
+integração MCP e a exportação STL/STEP; M7 acrescentou documentos, sketches
+constrangidos, revolução, loft, sweep, furos especiais, engrenagem helicoidal,
+roscas, espelho e padrões.
+
+Trabalho futuro é manutenção ou incremento explicitamente aprovado e deve
+preservar a separação do FreeCAD, a confirmação humana, a
+transação reversível, a auditoria e a mesma trilha de registro para chat e MCP.

@@ -16,7 +16,7 @@ _AXIS_DIRECTIONS = {
 
 
 class PatternMixin:
-    """Mirror and linear/polar feature patterns fused into one solid."""
+    """Mirror and linear/polar patterns stored as one derived feature."""
 
     @staticmethod
     def _checked_pattern_count(count: Any) -> int:

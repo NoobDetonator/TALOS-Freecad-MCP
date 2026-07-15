@@ -6,6 +6,9 @@ Ele detalha o M3 e orienta a ordem do M4. Quando houver diferença de prioridade
 este plano prevalece para a evolução do agente; os marcos M0, M1 e M2 continuam
 como registrados em `docs/milestones.md`.
 
+M3 e M4 estão concluídos. As contagens intermediárias abaixo são mantidas como
+histórico das entregas; a baseline atual é M0–M7 concluída, sem próximo marco automático.
+
 ## 1. Ponto de partida
 
 - **Data da análise:** 14 de julho de 2026.
@@ -21,8 +24,9 @@ como registrados em `docs/milestones.md`.
 - **Estado do M3.6:** concluído com 126 testes, rollback real e planos via MCP.
 - **Estado do M4.1–M4.3:** concluído com 25 ferramentas, três receitas, seleção
   interativa, captura visual, projeções MCP e smoke mecânico real.
-- **Capacidades atuais:** 39 ferramentas de leitura, modelagem e auditoria, três receitas,
-  planos compostos, seleção aguardada e captura visual.
+- **Capacidades atuais:** 47 ferramentas CAD, cinco receitas, nove ferramentas
+  MCP, dois Resources, cinco Prompts, planos compostos, seleção aguardada,
+  captura visual e exportação STL/STEP.
 - **Extensão pós-M4:** engrenagem reta involuta exposta por ferramenta segura que
   reutiliza o gerador oficial já instalado no FreeCAD.
 - **Fluxo de desenvolvimento:** lançador rápido com aprovação automática visível,
@@ -765,9 +769,9 @@ O corpus `benchmarks/agent-corpus-m4.json` cobre as 18 capacidades adicionadas e
 30 pedidos PT/EN. O seletor obteve recall 30/30, média de 2,97 ferramentas entre
 25 e economia de 87,6% dos bytes de schemas.
 
-## 20. Três primeiros incrementos recomendados
+## 20. Três primeiros incrementos concluídos
 
-Para reduzir risco e tempo de entrega, os próximos incrementos devem ser pequenos:
+Os incrementos usados para reduzir risco e tempo de entrega foram:
 
 1. **Benchmark e envelopes — concluído:** sem UI e sem mudar CAD; criou a régua
    para todas as decisões seguintes.
@@ -886,8 +890,12 @@ O marco de otimização estará concluído quando:
 
 ## 26. Orientação para retomada em outro chat
 
-Ao continuar, M3.1 a M3.6 e M4.1 a M4.3 já estão concluídos. Iniciar pelo M5,
-definindo primeiro o contrato versionado, redaction, retenção e local de
-armazenamento da auditoria. Não persistir a conversa completa por conveniência.
-Qualquer atalho que introduza Python arbitrário, um registro paralelo ou aprovação
-ampla deve ser recusado mesmo que produza uma demonstração mais rápida.
+Ao continuar, trate M0 a M7 como baseline concluída e não crie um novo marco por
+continuidade automática. O produto principal é o MCP; DeepSeek, seletor e loop
+interno estão em manutenção. O FreeCAD 1.1.1 instalado pode ser aberto normalmente
+com o Workbench vinculado conforme `docs/installation.md`.
+
+Qualquer trabalho novo precisa nascer de uma necessidade explícita. Atalhos que
+introduzam Python arbitrário, registro paralelo, aprovação ampla, mutação não
+reversível ou persistência da conversa completa devem ser recusados mesmo que
+produzam uma demonstração mais rápida.

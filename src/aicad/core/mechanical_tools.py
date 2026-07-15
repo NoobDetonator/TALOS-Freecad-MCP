@@ -837,8 +837,9 @@ def mechanical_tool_specs() -> tuple[ToolSpec, ...]:
         _spec(
             "cad.linear_pattern",
             "Copy one solid into a linear array of count instances spaced by "
-            "spacing millimeters along a global axis (x, y or z), fused into "
-            "one derived solid. Maximum 64 instances.",
+            "spacing millimeters along a global axis (x, y or z), stored in "
+            "one derived feature. Disconnected instances remain separate solids "
+            "inside that feature. Maximum 64 instances.",
             ToolRisk.MODIFY,
             _object_schema(
                 {
@@ -879,7 +880,8 @@ def mechanical_tool_specs() -> tuple[ToolSpec, ...]:
             "cad.polar_pattern",
             "Copy one solid into a polar array of count instances spread over "
             "angle degrees around a global axis (x, y or z) through the "
-            "origin, fused into one derived solid. A full 360 steps evenly; "
+            "origin, stored in one derived feature. Disconnected instances remain "
+            "separate solids inside that feature. A full 360 steps evenly; "
             "a smaller angle spreads the copies across the arc. Maximum 64 "
             "instances.",
             ToolRisk.MODIFY,

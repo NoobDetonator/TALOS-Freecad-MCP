@@ -49,7 +49,7 @@ Peças mecânicas para impressão 3D e fabricação leve:
 6. Aplicar transações, recalcular e validar.
 7. Confirmar o resultado ou reverter toda a unidade aprovada.
 
-## Estado atual — M5 concluído
+## Estado atual — M0 a M7 concluídos
 
 O Workbench **AI CAD** abre um painel funcional dentro do FreeCAD. O modo local
 entende comandos fechados; o modo DeepSeek opcional interpreta linguagem natural,
@@ -61,14 +61,20 @@ O produto já consegue:
 - inspecionar documento, seleção, contexto, objetos, medidas e dependências;
 - resolver nomes e labels sem aceitar ambiguidades;
 - listar parâmetros editáveis e capturar a vista sob demanda;
-- criar caixa, cilindro, placa, sketch retangular e pad;
+- criar e alternar documentos, salvar `.FCStd` e exportar STL/STEP;
+- criar caixa, cilindro, placa, sketches retangular e circular constrangidos e pad;
 - renomear, alterar dimensões permitidas, mover e rotacionar objetos;
-- criar furos passantes e padrões retangulares ou circulares;
+- criar furos passantes, com rebaixo, escareados e roscados, além de padrões de
+  furos retangulares ou circulares;
 - executar união, corte e interseção com operandos explícitos;
 - aplicar filete e chanfro por assinatura geométrica de aresta;
-- criar engrenagem reta externa com perfil involuto oficial do FreeCAD, módulo,
-  dentes, ângulo de pressão, espessura e furo controlados;
-- construir placa de fixação, flange e pad retangular por receitas confiáveis;
+- criar revolução, loft e sweep sobre trajetória controlada;
+- criar engrenagens retas e helicoidais com perfil involuto oficial, fase,
+  módulo, dentes, ângulo de pressão, espessura e furo controlados;
+- criar roscas externas e internas estilo ISO 60° voltadas a impressão 3D;
+- espelhar e repetir sólidos em padrões lineares e polares;
+- construir placa de fixação, flange, pad retangular, eixo escalonado e polia
+  plana por receitas confiáveis;
 - aprovar uma mutação ou um plano de duas a oito operações e desfazê-lo;
 - projetar o mesmo catálogo, receitas, prompts e capturas pela ponte MCP segura.
 - registrar e exportar localmente o histórico redigido de ações, planos,
@@ -80,9 +86,10 @@ Todas as mutações são chamadas estruturadas, confirmadas, transacionais,
 recalculadas e validadas. Texto do modelo nunca vira Python, macro ou shell. A
 chave DeepSeek só é solicitada para uso real e fica no cofre do Windows.
 
-Durante desenvolvimento, um lançador separado oferece confirmação automática
-visível e limitada à sessão para acelerar testes. Ele preserva toda a validação e
-reversibilidade e não muda o padrão seguro do lançador normal.
+No uso normal, o FreeCAD 1.1.1 instalado é aberto pelo próprio Windows e o
+Workbench **AI CAD** exige confirmação manual. Um lançador separado oferece
+confirmação automática visível e limitada à sessão apenas para desenvolvimento;
+ele preserva toda a validação e reversibilidade.
 
 ## Limites honestos do corte atual
 
@@ -90,14 +97,16 @@ O corte atual cobre modelagem mecânica demonstrável, mas ainda não promete
 “qualquer coisa que o FreeCAD modele”. As features derivadas guardam seus objetos
 de origem e são reversíveis, porém ainda são BReps controlados: não formam uma
 árvore Part Design completa que se recomputa automaticamente depois de qualquer
-edição. Os sketches não são constrangidos; a engrenagem helicoidal aproxima o
-helicoide por seções loftadas; a rosca é voltada a impressão 3D, não a norma de
-fabricação. Ainda faltam sweep genérico (depende de ferramenta de trajetória),
-superfícies, chapas, assemblies, desenhos técnicos, CAM e FEM.
+edição. Os sketches retangular e circular gerados pelas ferramentas atuais são
+constrangidos; a engrenagem helicoidal aproxima o helicoide por seções loftadas;
+as roscas são voltadas a impressão 3D, não a uma promessa de conformidade de
+fabricação. O sweep aceita a trajetória estruturada registrada, não caminhos
+arbitrários. Superfícies, chapas, assemblies, desenhos técnicos, CAM e FEM ficam
+fora do escopo atual.
 
-A exportação STL/STEP de um objeto por vez já existe. Ainda faltam checagens
-configuráveis de fabricação, prévia do artefato e exportação de vários objetos;
-esses itens continuam no M6.
+A exportação STL/STEP de um objeto por vez já existe. Checagens configuráveis de
+fabricação, prévia do artefato e exportação de vários objetos não fazem parte da
+baseline M0–M7 e não estão vinculadas a um marco futuro ativo.
 
 ## Diferenciais pretendidos
 
@@ -113,18 +122,14 @@ esses itens continuam no M6.
 - histórico completo das decisões sem guardar segredos;
 - validação antes de exportar ou fabricar.
 
-## Direção seguinte
+## Direção de manutenção
 
-O M5 concluiu o histórico e a auditoria local versionados. Daqui em diante o
-roteiro segue a estratégia MCP primeiro:
+M0 a M7 estão concluídos e não há próximo marco automático. O produto permanece
+MCP primeiro: o servidor, o catálogo seguro e a integração com o FreeCAD recebem correções e
+incrementos aprovados por necessidade concreta. O modo DeepSeek, o seletor e o
+loop interno permanecem em manutenção, sem expansão multi-provedor.
 
-- **M6 — MCP como produto**: exportação STL/STEP controlada fecha o fluxo
-  "pedido em linguagem natural → arquivo fabricável"; documentação e
-  configuração de integração para Claude Code, Codex e Cursor; descrições de
-  ferramenta otimizadas para agentes externos.
-- **M7 — Cobertura de modelagem**: sketch constrangido, revolução, sweep,
-  loft, mais receitas e feedback visual pós-mutação, ampliando o que um agente
-  consegue modelar sozinho.
-- **M8 — Lançamento público**: instalação simples, documentação de usuário
-  final, demonstração gravada e abertura do repositório com divulgação na
-  comunidade FreeCAD.
+Qualquer incremento novo deve preservar o `ToolRegistry` único, schemas pequenos,
+confirmação humana, transações, validação, rollback, auditoria e testes fora do
+FreeCAD. A quantidade de ferramentas não é uma meta isolada; cobertura nova deve
+corresponder a tarefas reais e métricas reproduzíveis.
