@@ -55,6 +55,42 @@ class ToolErrorCode(StrEnum):
     INTERNAL_ERROR = "internal_error"
 
 
+class ToolErrorCategory(StrEnum):
+    """Stable failure families shared by chat, MCP and CAD adapters."""
+
+    PROTOCOL = "protocol"
+    INVALID_ARGUMENT = "invalid_argument"
+    MISSING_OBJECT = "missing_object"
+    STALE_STATE = "stale_state"
+    CONSTRAINT_CONFLICT = "constraint_conflict"
+    GEOMETRY = "geometry"
+    INTERFERENCE = "interference"
+    UNAVAILABLE_CAPABILITY = "unavailable_capability"
+    TRANSPORT = "transport"
+    BUSY = "busy"
+    TIMEOUT = "timeout"
+    CANCELLED = "cancelled"
+    AUTHORIZATION = "authorization"
+    EXPORT = "export"
+    INTERNAL = "internal"
+
+
+class ToolRecoveryActionType(StrEnum):
+    """Bounded recovery operations an agent can reason about safely."""
+
+    RETRY = "retry"
+    SEARCH_CAPABILITIES = "search_capabilities"
+    DESCRIBE_CAPABILITY = "describe_capability"
+    CHANGE_ARGUMENT = "change_argument"
+    REFRESH_CONTEXT = "refresh_context"
+    REFRESH_SESSION = "refresh_session"
+    OPEN_FREECAD = "open_freecad"
+    WAIT = "wait"
+    REVIEW_CONFIRMATION = "review_confirmation"
+    INSPECT_GEOMETRY = "inspect_geometry"
+    STOP_AND_REPORT = "stop_and_report"
+
+
 _SENSITIVE_KEYS = {
     "apikey",
     "authorization",
@@ -92,6 +128,23 @@ def _json_size(value: Any) -> int:
     )
 
 
+class ToolRecoveryAction(BaseModel):
+    """One machine-readable, non-executable suggestion for recovering safely."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
+
+    action: ToolRecoveryActionType
+    description: ShortText
+    arguments: dict[str, JsonValue] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_arguments(self) -> ToolRecoveryAction:
+        reject_sensitive_metadata_keys(self.arguments)
+        if _json_size(self.arguments) > 2 * 1024:
+            raise ValueError("Recovery action arguments are too large.")
+        return self
+
+
 class ToolError(BaseModel):
     """Safe, actionable failure information that can be shown to an AI."""
 
@@ -99,7 +152,13 @@ class ToolError(BaseModel):
 
     code: ToolErrorCode
     message: ShortText
+    category: ToolErrorCategory = ToolErrorCategory.INTERNAL
     retryable: bool = False
+    safe_state_restored: bool | None = None
+    suggested_actions: tuple[ToolRecoveryAction, ...] = Field(
+        default_factory=tuple,
+        max_length=4,
+    )
     details: dict[str, JsonValue] = Field(default_factory=dict)
 
     @model_validator(mode="after")

@@ -56,9 +56,11 @@ narrativa não deve duplicar todos os schemas.
 
 ## Autocorreção segura
 
-O dispatcher expõe `ValueError`, `RuntimeError` e referências ausentes em texto
-redigido e limitado. Erros internos permanecem genéricos. O agente pode ajustar
-argumentos e tentar outra ferramenta registrada, mas não gerar Python como fuga.
+O dispatcher classifica falhas, informa se o estado foi restaurado e sugere
+ações tipadas. Causas de domínio são redigidas; detalhes internos permanecem
+genéricos. Transporte interrompido exige nova leitura de contexto. O agente pode
+corrigir argumentos e tentar outra ferramenta registrada, mas nunca repetir uma
+mutação ambígua nem gerar Python como fuga.
 
 ## Planos e latência
 

@@ -16,6 +16,11 @@ from pydantic import (
 )
 
 from aicad.core.tool_registry import ToolInputError, ToolRegistry, ToolRisk
+from aicad.core.tool_results import (
+    ToolErrorCategory,
+    ToolRecoveryAction,
+    ToolRecoveryActionType,
+)
 from aicad.orchestration.plan_service import CompositeValidatedPlan
 
 
@@ -51,7 +56,145 @@ class BridgeErrorCode(StrEnum):
     TIMEOUT = "timeout"
     EXECUTION_ERROR = "execution_error"
     GUI_UNAVAILABLE = "gui_unavailable"
+    TRANSPORT_UNAVAILABLE = "transport_unavailable"
     QUEUE_FULL = "queue_full"
+
+
+def _recovery(
+    action: ToolRecoveryActionType,
+    description: str,
+    **arguments: JsonValue,
+) -> ToolRecoveryAction:
+    return ToolRecoveryAction(
+        action=action,
+        description=description,
+        arguments=arguments,
+    )
+
+
+_ERROR_PROFILES: dict[BridgeErrorCode, dict[str, Any]] = {
+    BridgeErrorCode.INVALID_REQUEST: {
+        "category": ToolErrorCategory.PROTOCOL,
+        "retryable": False,
+        "safe_state_restored": True,
+        "suggested_actions": (
+            _recovery(
+                ToolRecoveryActionType.STOP_AND_REPORT,
+                "Correct the request envelope before submitting a new request.",
+            ),
+        ),
+    },
+    BridgeErrorCode.UNSUPPORTED_VERSION: {
+        "category": ToolErrorCategory.PROTOCOL,
+        "retryable": False,
+        "safe_state_restored": True,
+        "suggested_actions": (
+            _recovery(
+                ToolRecoveryActionType.STOP_AND_REPORT,
+                "Use the protocol version reported in the error details.",
+            ),
+        ),
+    },
+    BridgeErrorCode.UNKNOWN_TOOL: {
+        "category": ToolErrorCategory.UNAVAILABLE_CAPABILITY,
+        "retryable": False,
+        "safe_state_restored": True,
+        "suggested_actions": (
+            _recovery(
+                ToolRecoveryActionType.SEARCH_CAPABILITIES,
+                "Search the current CAD capability catalog for an alternative.",
+            ),
+        ),
+    },
+    BridgeErrorCode.INVALID_ARGUMENTS: {
+        "category": ToolErrorCategory.INVALID_ARGUMENT,
+        "retryable": False,
+        "safe_state_restored": True,
+        "suggested_actions": (
+            _recovery(
+                ToolRecoveryActionType.DESCRIBE_CAPABILITY,
+                "Reload the selected capability contract and correct its arguments.",
+            ),
+        ),
+    },
+    BridgeErrorCode.UNAUTHORIZED: {
+        "category": ToolErrorCategory.AUTHORIZATION,
+        "retryable": False,
+        "safe_state_restored": True,
+        "suggested_actions": (
+            _recovery(
+                ToolRecoveryActionType.REFRESH_SESSION,
+                "Refresh the authenticated local bridge session.",
+            ),
+        ),
+    },
+    BridgeErrorCode.CONFIRMATION_DENIED: {
+        "category": ToolErrorCategory.CANCELLED,
+        "retryable": False,
+        "safe_state_restored": True,
+        "suggested_actions": (
+            _recovery(
+                ToolRecoveryActionType.REVIEW_CONFIRMATION,
+                "Do not resubmit unless the user explicitly asks to continue.",
+            ),
+        ),
+    },
+    BridgeErrorCode.TIMEOUT: {
+        "category": ToolErrorCategory.TIMEOUT,
+        "retryable": True,
+        "safe_state_restored": True,
+        "suggested_actions": (
+            _recovery(
+                ToolRecoveryActionType.WAIT,
+                "Wait briefly, refresh the document context, then use a new request ID.",
+            ),
+        ),
+    },
+    BridgeErrorCode.EXECUTION_ERROR: {
+        "category": ToolErrorCategory.INTERNAL,
+        "retryable": False,
+        "safe_state_restored": None,
+        "suggested_actions": (
+            _recovery(
+                ToolRecoveryActionType.STOP_AND_REPORT,
+                "Inspect the structured reason and current context before continuing.",
+            ),
+        ),
+    },
+    BridgeErrorCode.GUI_UNAVAILABLE: {
+        "category": ToolErrorCategory.TRANSPORT,
+        "retryable": True,
+        "safe_state_restored": True,
+        "suggested_actions": (
+            _recovery(
+                ToolRecoveryActionType.OPEN_FREECAD,
+                "Open FreeCAD with the AI CAD workbench active, then retry.",
+            ),
+        ),
+    },
+    BridgeErrorCode.TRANSPORT_UNAVAILABLE: {
+        "category": ToolErrorCategory.TRANSPORT,
+        "retryable": True,
+        "safe_state_restored": None,
+        "suggested_actions": (
+            _recovery(
+                ToolRecoveryActionType.REFRESH_CONTEXT,
+                "Reconnect and read the document context before deciding whether to retry.",
+            ),
+        ),
+    },
+    BridgeErrorCode.QUEUE_FULL: {
+        "category": ToolErrorCategory.BUSY,
+        "retryable": True,
+        "safe_state_restored": True,
+        "suggested_actions": (
+            _recovery(
+                ToolRecoveryActionType.WAIT,
+                "Wait for the GUI queue to drain, then submit a new request.",
+            ),
+        ),
+    },
+}
 
 
 class BridgeError(BaseModel):
@@ -59,7 +202,25 @@ class BridgeError(BaseModel):
 
     code: BridgeErrorCode
     message: str = Field(min_length=1, max_length=500)
+    category: ToolErrorCategory
+    retryable: bool
+    safe_state_restored: bool | None
+    suggested_actions: tuple[ToolRecoveryAction, ...] = Field(max_length=4)
     details: dict[str, JsonValue] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def add_recovery_profile(cls, value: Any) -> Any:
+        if not isinstance(value, Mapping):
+            return value
+        payload = dict(value)
+        try:
+            profile = _ERROR_PROFILES[BridgeErrorCode(payload.get("code"))]
+        except (KeyError, TypeError, ValueError):
+            return payload
+        for field_name, default in profile.items():
+            payload.setdefault(field_name, default)
+        return payload
 
 
 class BridgeRequest(BaseModel):

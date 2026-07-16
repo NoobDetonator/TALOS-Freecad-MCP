@@ -22,6 +22,11 @@ from aicad.bridge.protocol import (
     validate_request_payload,
 )
 from aicad.core.tool_registry import ToolRegistry, ToolRisk
+from aicad.core.tool_results import (
+    ToolErrorCategory,
+    ToolRecoveryAction,
+    ToolRecoveryActionType,
+)
 
 
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 30.0
@@ -47,6 +52,14 @@ class _DispatchEntry:
     event: Event = field(default_factory=Event)
     executing: bool = False
     audit_action_id: UUID | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _FailureDiagnostic:
+    message: str
+    category: ToolErrorCategory
+    retryable: bool
+    suggested_actions: tuple[ToolRecoveryAction, ...]
 
 
 class BridgeDispatcher:
@@ -267,11 +280,19 @@ class BridgeDispatcher:
                 result=result,
             )
         except Exception as exc:
+            diagnostic = self._failure_diagnostic(
+                "The CAD read operation failed.",
+                exc,
+            )
             response = self._error_response(
                 request_to_execute.request_id,
                 BridgeResponseStatus.FAILED,
                 BridgeErrorCode.EXECUTION_ERROR,
-                self._failure_message("The CAD read operation failed.", exc),
+                diagnostic.message,
+                category=diagnostic.category,
+                retryable=diagnostic.retryable,
+                safe_state_restored=True,
+                suggested_actions=diagnostic.suggested_actions,
             )
         self._finish(request_to_execute.request_id, response)
         return True
@@ -350,11 +371,19 @@ class BridgeDispatcher:
                 result=result,
             )
         except Exception as exc:
+            diagnostic = self._failure_diagnostic(
+                "The confirmed CAD operation failed.",
+                exc,
+            )
             response = self._error_response(
                 request_id,
                 BridgeResponseStatus.FAILED,
                 BridgeErrorCode.EXECUTION_ERROR,
-                self._failure_message("The confirmed CAD operation failed.", exc),
+                diagnostic.message,
+                category=diagnostic.category,
+                retryable=diagnostic.retryable,
+                safe_state_restored=True,
+                suggested_actions=diagnostic.suggested_actions,
             )
         self._finish(request_id, response)
         return response
@@ -491,11 +520,92 @@ class BridgeDispatcher:
         status: BridgeResponseStatus,
         code: BridgeErrorCode,
         message: str,
+        *,
+        category: ToolErrorCategory | None = None,
+        retryable: bool | None = None,
+        safe_state_restored: bool | None = None,
+        suggested_actions: tuple[ToolRecoveryAction, ...] | None = None,
     ) -> BridgeResponse:
+        overrides: dict[str, Any] = {}
+        if category is not None:
+            overrides["category"] = category
+        if retryable is not None:
+            overrides["retryable"] = retryable
+        if safe_state_restored is not None:
+            overrides["safe_state_restored"] = safe_state_restored
+        if suggested_actions is not None:
+            overrides["suggested_actions"] = suggested_actions
         return BridgeResponse(
             request_id=request_id,
             status=status,
-            error=BridgeError(code=code, message=message),
+            error=BridgeError(code=code, message=message, **overrides),
+        )
+
+    @classmethod
+    def _failure_diagnostic(
+        cls,
+        prefix: str,
+        error: Exception,
+    ) -> _FailureDiagnostic:
+        message = cls._failure_message(prefix, error)
+        if isinstance(error, KeyError):
+            return _FailureDiagnostic(
+                message=message,
+                category=ToolErrorCategory.MISSING_OBJECT,
+                retryable=True,
+                suggested_actions=(
+                    ToolRecoveryAction(
+                        action=ToolRecoveryActionType.REFRESH_CONTEXT,
+                        description=(
+                            "Refresh the document context, resolve the current object "
+                            "name, then submit a new request ID."
+                        ),
+                    ),
+                ),
+            )
+        if isinstance(error, ValueError):
+            return _FailureDiagnostic(
+                message=message,
+                category=ToolErrorCategory.INVALID_ARGUMENT,
+                retryable=True,
+                suggested_actions=(
+                    ToolRecoveryAction(
+                        action=ToolRecoveryActionType.CHANGE_ARGUMENT,
+                        description=(
+                            "Correct the geometric or numeric arguments, then submit "
+                            "a new request ID."
+                        ),
+                    ),
+                ),
+            )
+        if isinstance(error, RuntimeError):
+            return _FailureDiagnostic(
+                message=message,
+                category=ToolErrorCategory.GEOMETRY,
+                retryable=True,
+                suggested_actions=(
+                    ToolRecoveryAction(
+                        action=ToolRecoveryActionType.INSPECT_GEOMETRY,
+                        description=(
+                            "Inspect the current geometry and validation state before "
+                            "submitting a corrected request."
+                        ),
+                    ),
+                ),
+            )
+        return _FailureDiagnostic(
+            message=message,
+            category=ToolErrorCategory.INTERNAL,
+            retryable=False,
+            suggested_actions=(
+                ToolRecoveryAction(
+                    action=ToolRecoveryActionType.STOP_AND_REPORT,
+                    description=(
+                        "Stop automatic recovery and report the failure without "
+                        "exposing implementation details."
+                    ),
+                ),
+            ),
         )
 
     @staticmethod

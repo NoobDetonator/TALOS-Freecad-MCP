@@ -7,6 +7,8 @@ from uuid import UUID, uuid4
 from mcp.server.fastmcp import FastMCP
 
 from aicad.bridge.protocol import (
+    BridgeError,
+    BridgeErrorCode,
     BridgePlanCancelRequest,
     BridgePlanStatusRequest,
     BridgePlanSubmitRequest,
@@ -25,6 +27,11 @@ from aicad.core.capabilities import (
 )
 from aicad.core.tool_registry import ToolRisk
 from aicad.core.context import DocumentStateToken
+from aicad.core.tool_results import (
+    ToolErrorCategory,
+    ToolRecoveryAction,
+    ToolRecoveryActionType,
+)
 from aicad.core.visual_cache import read_capture
 from aicad.orchestration.models import OrchestrationPlan, PlannedToolCall
 from aicad.orchestration.plan_service import CompositeValidatedPlan
@@ -129,11 +136,46 @@ def _send_bridge_request(request: BridgeTransportRequest) -> BridgeResponse:
             session.endpoint,
             timeout=BRIDGE_CLIENT_TIMEOUT_SECONDS,
         ).request(request)
-    except (BridgeSessionError, BridgeTransportError) as exc:
-        raise RuntimeError(
-            "The FreeCAD GUI bridge is unavailable or did not respond: "
-            f"{exc}"
-        ) from exc
+    except BridgeSessionError:
+        return BridgeResponse(
+            request_id=request.request_id,
+            status=BridgeResponseStatus.FAILED,
+            error=BridgeError(
+                code=BridgeErrorCode.GUI_UNAVAILABLE,
+                message=(
+                    "No active FreeCAD GUI bridge session is available."
+                ),
+            ),
+        )
+    except BridgeTransportError:
+        safe_state_restored = (
+            True
+            if isinstance(request, BridgeRequest)
+            and tool_registry.get_spec(request.tool_name).risk is ToolRisk.READ
+            else None
+        )
+        return BridgeResponse(
+            request_id=request.request_id,
+            status=BridgeResponseStatus.FAILED,
+            error=BridgeError(
+                code=BridgeErrorCode.TRANSPORT_UNAVAILABLE,
+                message=(
+                    "The FreeCAD GUI bridge disconnected or did not respond."
+                ),
+                category=ToolErrorCategory.TRANSPORT,
+                retryable=True,
+                safe_state_restored=safe_state_restored,
+                suggested_actions=(
+                    ToolRecoveryAction(
+                        action=ToolRecoveryActionType.REFRESH_CONTEXT,
+                        description=(
+                            "Reconnect and read the current document context before "
+                            "deciding whether to retry."
+                        ),
+                    ),
+                ),
+            ),
+        )
 
 
 @mcp.tool()
@@ -172,12 +214,7 @@ def execute_cad_read_tool(name: str, arguments: dict[str, object]) -> object:
     response = _send_bridge_request(request)
     if response.status is BridgeResponseStatus.COMPLETED:
         return response.result
-    message = (
-        response.error.message
-        if response.error is not None
-        else "The CAD read did not complete."
-    )
-    raise RuntimeError(message)
+    return response.model_dump(mode="json")
 
 
 @mcp.tool()
@@ -228,7 +265,7 @@ def submit_cad_plan(
     )
     context_response = _send_bridge_request(context_request)
     if context_response.status is not BridgeResponseStatus.COMPLETED:
-        raise RuntimeError("The active CAD baseline could not be read safely.")
+        return context_response.model_dump(mode="json")
     if not isinstance(context_response.result, dict):
         raise RuntimeError("The active CAD baseline response is invalid.")
     base_state = DocumentStateToken.model_validate(
@@ -299,11 +336,10 @@ def submit_cad_recipe(
         {"detail_level": "work", "max_objects": 25, "cursor": 0},
     )
     context_response = _send_bridge_request(context_request)
-    if (
-        context_response.status is not BridgeResponseStatus.COMPLETED
-        or not isinstance(context_response.result, dict)
-    ):
-        raise RuntimeError("The active CAD baseline could not be read safely.")
+    if context_response.status is not BridgeResponseStatus.COMPLETED:
+        return context_response.model_dump(mode="json")
+    if not isinstance(context_response.result, dict):
+        raise RuntimeError("The active CAD baseline response is invalid.")
     base_state = DocumentStateToken.model_validate(
         context_response.result["state_token"]
     )

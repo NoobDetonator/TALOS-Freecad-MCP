@@ -482,6 +482,7 @@ Testes adicionais:
 | Onda | Estado |
 | --- | --- |
 | E1.1 — descoberta escalável | concluída |
+| Base transversal — erros recuperáveis | concluída |
 | E1.2 — percepção visual | pendente |
 | E1.3 — CAD-IR | pendente |
 | E1.4 — parametricidade nativa | pendente |
@@ -494,6 +495,14 @@ Testes adicionais:
 - schemas sob demanda;
 - testes de payload, ranking e segurança;
 - documentação do fluxo novo.
+
+### Base transversal — erros recuperáveis
+
+- categorias e ações de recuperação compartilhadas por chat e MCP;
+- estado seguro explícito para falhas anteriores à execução e rollback;
+- transporte interrompido marcado como estado desconhecido;
+- erros de leitura preservados como resposta estruturada;
+- mensagens de domínio curtas, redigidas e sem detalhes internos.
 
 ### E1.2 — percepção visual
 
@@ -535,7 +544,7 @@ Testes adicionais:
 
 1. `search_cad_capabilities`;
 2. `describe_cad_capabilities`;
-3. erros estruturados;
+3. erros estruturados; **concluído**
 4. `cad.capture_views`;
 5. `cad.capture_section_view`;
 6. transparência, isolamento e restauração da câmera;

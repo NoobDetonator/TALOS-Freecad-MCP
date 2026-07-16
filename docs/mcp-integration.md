@@ -10,7 +10,7 @@ envia a execução para o Workbench aberto no FreeCAD.
 - executável `.venv\Scripts\aicad-mcp.exe` disponível.
 
 Sem a GUI, `health`, descoberta de capacidades e receitas funcionam normalmente.
-Operações CAD retornam erro controlado de ponte indisponível.
+Operações CAD retornam erro estruturado de ponte indisponível.
 
 ## Configuração
 
@@ -69,7 +69,10 @@ Receitas disponíveis: `mounting_plate`, `flange`, `rectangular_pad`,
 - exportações são sempre manuais;
 - argumentos inválidos falham antes da geometria;
 - referências ambíguas nunca são escolhidas por palpite;
-- erros de domínio retornam uma causa curta e redigida;
+- erros retornam `code`, `category`, `retryable`, `safe_state_restored` e
+  `suggested_actions`;
+- `safe_state_restored=null` exige reler o contexto antes de qualquer nova
+  mutação;
 - operações longas podem levar mais de um minuto;
 - `cad.undo` desfaz a última transação confirmada;
 - toda ação entra na auditoria local.
@@ -86,3 +89,7 @@ somente um ressalto, informe `z_min` e `z_max` em coordenadas globais.
 | Ferramenta desconhecida | refazer `search_cad_capabilities` e descrever o contrato escolhido |
 | Objeto ambíguo | selecionar ou informar nome único |
 | Arquivo de exportação existente | usar `overwrite=true` apenas com autorização |
+
+`retryable=true` indica que existe uma recuperação segura descrita nas ações;
+não autoriza repetir mutações sem reler o estado. Falhas de transporte são
+tratadas como ambíguas porque a conexão pode cair depois da execução.

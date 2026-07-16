@@ -16,10 +16,12 @@ from aicad.audit import (
 )
 from aicad.bridge.dispatcher import BridgeDispatcher
 from aicad.bridge.protocol import (
+    BridgeError,
     BridgeErrorCode,
     BridgeRequest,
     BridgeResponseStatus,
 )
+from aicad.core.tool_results import ToolErrorCategory, ToolRecoveryActionType
 
 
 class RecordingAdapter:
@@ -250,7 +252,7 @@ class FailingAdapter(RecordingAdapter):
         raise self._error
 
 
-def read_failure_message(error: Exception) -> str:
+def read_failure(error: Exception) -> BridgeError:
     dispatcher = BridgeDispatcher(build_cad_tool_registry(FailingAdapter(error)))
     with ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(dispatcher.submit, request_payload())
@@ -261,7 +263,11 @@ def read_failure_message(error: Exception) -> str:
     assert response.status is BridgeResponseStatus.FAILED
     assert response.error is not None
     assert response.error.code is BridgeErrorCode.EXECUTION_ERROR
-    return response.error.message
+    return response.error
+
+
+def read_failure_message(error: Exception) -> str:
+    return read_failure(error).message
 
 
 def test_failure_surfaces_domain_reason_but_hides_internals() -> None:
@@ -277,6 +283,29 @@ def test_failure_surfaces_domain_reason_but_hides_internals() -> None:
 
     internal = read_failure_message(AttributeError("Part.Cylinder has no attribute"))
     assert "no attribute" not in internal
+
+
+def test_failure_explains_category_recovery_and_safe_state() -> None:
+    missing = read_failure(KeyError("Unknown CAD object: Sun2"))
+    assert missing.category is ToolErrorCategory.MISSING_OBJECT
+    assert missing.retryable is True
+    assert missing.safe_state_restored is True
+    assert (
+        missing.suggested_actions[0].action
+        is ToolRecoveryActionType.REFRESH_CONTEXT
+    )
+
+    invalid = read_failure(ValueError("The radius is too large."))
+    assert invalid.category is ToolErrorCategory.INVALID_ARGUMENT
+    assert (
+        invalid.suggested_actions[0].action
+        is ToolRecoveryActionType.CHANGE_ARGUMENT
+    )
+
+    internal = read_failure(AttributeError("implementation detail"))
+    assert internal.category is ToolErrorCategory.INTERNAL
+    assert internal.retryable is False
+    assert internal.safe_state_restored is True
 
 
 def test_close_wakes_waiters_and_rejects_new_work() -> None:

@@ -14,6 +14,7 @@ from aicad.bridge.protocol import (
     validate_request_payload,
 )
 from aicad.core.tool_registry import build_default_registry
+from aicad.core.tool_results import ToolErrorCategory, ToolRecoveryActionType
 
 
 REQUEST_ID = "12345678-1234-5678-9234-567812345678"
@@ -125,3 +126,27 @@ def test_response_enforces_status_payload_invariants() -> None:
         ),
     )
     assert failed.result is None
+    assert failed.error.category is ToolErrorCategory.INTERNAL
+    assert failed.error.safe_state_restored is None
+
+
+def test_bridge_errors_add_deterministic_recovery_profiles() -> None:
+    unknown = BridgeError(
+        code=BridgeErrorCode.UNKNOWN_TOOL,
+        message="The requested CAD tool is not registered.",
+    )
+    assert unknown.category is ToolErrorCategory.UNAVAILABLE_CAPABILITY
+    assert unknown.retryable is False
+    assert unknown.safe_state_restored is True
+    assert (
+        unknown.suggested_actions[0].action
+        is ToolRecoveryActionType.SEARCH_CAPABILITIES
+    )
+
+    disconnected = BridgeError(
+        code=BridgeErrorCode.TRANSPORT_UNAVAILABLE,
+        message="The bridge disconnected.",
+    )
+    assert disconnected.category is ToolErrorCategory.TRANSPORT
+    assert disconnected.retryable is True
+    assert disconnected.safe_state_restored is None

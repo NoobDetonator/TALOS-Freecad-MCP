@@ -6,7 +6,10 @@ from pydantic import ValidationError
 from aicad.core.tool_results import (
     AffectedObjects,
     ToolError,
+    ToolErrorCategory,
     ToolErrorCode,
+    ToolRecoveryAction,
+    ToolRecoveryActionType,
     ToolResultEnvelope,
     ToolResultStatus,
     ToolValidation,
@@ -75,6 +78,13 @@ def test_tool_result_rejects_sensitive_metadata_and_non_finite_values() -> None:
         )
 
     with pytest.raises(ValidationError):
+        ToolRecoveryAction(
+            action=ToolRecoveryActionType.RETRY,
+            description="Retry safely.",
+            arguments={"session_token": "must-not-be-here"},
+        )
+
+    with pytest.raises(ValidationError):
         ToolResultEnvelope(
             tool_name="cad.get_document_summary",
             status=ToolResultStatus.COMPLETED,
@@ -87,3 +97,24 @@ def test_tool_result_rejects_sensitive_metadata_and_non_finite_values() -> None:
 def test_affected_objects_require_unique_internal_names() -> None:
     with pytest.raises(ValidationError):
         AffectedObjects(modified=("Box", "Box"))
+
+
+def test_tool_error_can_explain_safe_machine_recovery() -> None:
+    error = ToolError(
+        code=ToolErrorCode.STALE_STATE,
+        message="The document state changed.",
+        category=ToolErrorCategory.STALE_STATE,
+        retryable=True,
+        safe_state_restored=True,
+        suggested_actions=(
+            ToolRecoveryAction(
+                action=ToolRecoveryActionType.REFRESH_CONTEXT,
+                description="Read a fresh context before replanning.",
+            ),
+        ),
+    )
+
+    payload = error.model_dump(mode="json")
+    assert payload["category"] == "stale_state"
+    assert payload["safe_state_restored"] is True
+    assert payload["suggested_actions"][0]["action"] == "refresh_context"

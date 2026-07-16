@@ -4,7 +4,14 @@ import pytest
 
 from aicad import mcp_server
 from aicad.bridge.dispatcher import GUI_REQUEST_TIMEOUT_SECONDS
-from aicad.bridge.protocol import BridgeResponse, BridgeResponseStatus
+from aicad.bridge.protocol import (
+    BridgeError,
+    BridgeErrorCode,
+    BridgeResponse,
+    BridgeResponseStatus,
+)
+from aicad.bridge.session import BridgeSessionError
+from aicad.bridge.transport import BridgeTransportError
 from aicad.mcp_server import (
     available_cad_tools,
     describe_cad_capabilities,
@@ -99,3 +106,79 @@ def test_read_entrypoint_returns_gui_bridge_result(
         "active": False,
         "objects": [],
     }
+
+
+def test_read_entrypoint_preserves_structured_bridge_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def send(request):
+        return BridgeResponse(
+            request_id=request.request_id,
+            status=BridgeResponseStatus.FAILED,
+            error=BridgeError(
+                code=BridgeErrorCode.EXECUTION_ERROR,
+                message="The CAD read failed safely.",
+                safe_state_restored=True,
+            ),
+        )
+
+    monkeypatch.setattr(mcp_server, "_send_bridge_request", send)
+    result = execute_cad_read_tool("cad.get_document_summary", {})
+
+    assert result["status"] == "failed"
+    assert result["error"]["code"] == "execution_error"
+    assert result["error"]["safe_state_restored"] is True
+
+
+def test_missing_gui_session_returns_structured_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class MissingSessionStore:
+        def load(self):
+            raise BridgeSessionError("No session.")
+
+    monkeypatch.setattr(
+        mcp_server,
+        "default_session_store",
+        lambda: MissingSessionStore(),
+    )
+    result = request_cad_tool(
+        "cad.create_box",
+        {"length": 10, "width": 20, "height": 30},
+    )
+
+    assert result["status"] == "failed"
+    assert result["error"]["code"] == "gui_unavailable"
+    assert result["error"]["retryable"] is True
+    assert result["error"]["safe_state_restored"] is True
+
+
+def test_ambiguous_transport_failure_does_not_claim_safe_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class SessionStore:
+        def load(self):
+            return type("Session", (), {"endpoint": object()})()
+
+    class FailingClient:
+        def __init__(self, endpoint, *, timeout):
+            del endpoint, timeout
+
+        def request(self, request):
+            del request
+            raise BridgeTransportError("Disconnected mid-frame.")
+
+    monkeypatch.setattr(mcp_server, "default_session_store", lambda: SessionStore())
+    monkeypatch.setattr(mcp_server, "TcpBridgeClient", FailingClient)
+    result = request_cad_tool(
+        "cad.create_box",
+        {"length": 10, "width": 20, "height": 30},
+    )
+
+    assert result["error"]["code"] == "transport_unavailable"
+    assert result["error"]["retryable"] is True
+    assert result["error"]["safe_state_restored"] is None
+    assert result["error"]["suggested_actions"][0]["action"] == "refresh_context"
+
+    read_result = request_cad_tool("cad.get_document_summary", {})
+    assert read_result["error"]["safe_state_restored"] is True

@@ -15,6 +15,7 @@ regras do produto permanecem independentes dele.
 - M0 a M7 concluídos; E1 — MCP em escala em execução;
 - modelagem básica e avançada, Sketch, montagens, rolamentos e exportação;
 - mutações transacionais, validadas, auditadas e reversíveis;
+- erros MCP categorizados, recuperáveis e com estado seguro explícito;
 - aceitação automática visível por padrão; exportações sempre manuais.
 
 A IA interna com DeepSeek continua disponível, mas está em manutenção. O foco do
