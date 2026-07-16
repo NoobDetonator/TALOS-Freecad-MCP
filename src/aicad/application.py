@@ -47,6 +47,17 @@ class CadAdapter(Protocol):
         fit: bool = True,
     ) -> dict[str, Any]: ...
 
+    def capture_section_view(
+        self,
+        plane: str = "xy",
+        offset: float = 0.0,
+        flip: bool = False,
+        width: int = 640,
+        height: int = 480,
+        view: str = "isometric",
+        fit: bool = True,
+    ) -> dict[str, Any]: ...
+
     def create_box(
         self, length: float, width: float, height: float, name: str = "AIBox"
     ) -> dict[str, Any]: ...
@@ -439,6 +450,7 @@ def build_cad_tool_registry(adapter: CadAdapter) -> ToolRegistry:
         "cad.get_editable_parameters": "get_editable_parameters",
         "cad.capture_view": "capture_view",
         "cad.capture_views": "capture_views",
+        "cad.capture_section_view": "capture_section_view",
         "cad.create_box": "create_box",
         "cad.create_cylinder": "create_cylinder",
         "cad.create_cone": "create_cone",

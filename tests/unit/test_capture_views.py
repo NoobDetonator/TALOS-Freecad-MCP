@@ -16,6 +16,8 @@ class FakeActiveView:
         self.saved_cameras: list[str] = []
         self.fail_after = fail_after
         self.animation_enabled = True
+        self.clipping_plane = False
+        self.clipping_calls: list[tuple[object, ...]] = []
 
     def getCamera(self) -> str:
         return self.camera
@@ -58,6 +60,13 @@ class FakeActiveView:
 
     def redraw(self) -> None:
         pass
+
+    def hasClippingPlane(self) -> bool:
+        return self.clipping_plane
+
+    def toggleClippingPlane(self, *arguments: object) -> None:
+        self.clipping_calls.append(arguments)
+        self.clipping_plane = bool(arguments[0])
 
     def saveImage(self, path: str, width: int, height: int, mode: str) -> None:
         del width, height, mode
@@ -243,3 +252,235 @@ def test_capture_overlay_failure_restores_already_changed_state(
         ContextReadsMixin._hide_capture_overlays(view)
 
     assert view.viewer.enabled is True
+
+
+def test_framebuffer_capture_waits_for_two_equal_frames(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeImage:
+        def __init__(self, content: str) -> None:
+            self.content = content
+
+        def isNull(self) -> bool:
+            return False
+
+        def width(self) -> int:
+            return 640
+
+        def height(self) -> int:
+            return 480
+
+        def __eq__(self, other: object) -> bool:
+            return isinstance(other, FakeImage) and self.content == other.content
+
+    class FakeViewer:
+        def __init__(self) -> None:
+            self.frames = iter(
+                [
+                    FakeImage("stale"),
+                    FakeImage("rendering"),
+                    FakeImage("stable"),
+                    FakeImage("stable"),
+                ]
+            )
+            self.repaint_count = 0
+            self.grab_count = 0
+
+        def repaint(self) -> None:
+            self.repaint_count += 1
+
+        def grabFramebuffer(self) -> FakeImage:
+            self.grab_count += 1
+            return next(self.frames)
+
+    class FakeView:
+        def __init__(self) -> None:
+            self.redraw_count = 0
+
+        def redraw(self) -> None:
+            self.redraw_count += 1
+
+    monkeypatch.setitem(
+        sys.modules,
+        "FreeCADGui",
+        SimpleNamespace(updateGui=lambda: None),
+    )
+    viewer = FakeViewer()
+    view = FakeView()
+
+    result = ContextReadsMixin._grab_stable_framebuffer(view, viewer)
+
+    assert result.content == "stable"
+    assert viewer.grab_count == 4
+    assert viewer.repaint_count == 4
+    assert view.redraw_count == 4
+
+
+def test_framebuffer_capture_rejects_unstable_frames(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeImage:
+        def __init__(self, content: int) -> None:
+            self.content = content
+
+        def isNull(self) -> bool:
+            return False
+
+        def width(self) -> int:
+            return 640
+
+        def height(self) -> int:
+            return 480
+
+        def __eq__(self, other: object) -> bool:
+            return isinstance(other, FakeImage) and self.content == other.content
+
+    class FakeViewer:
+        def __init__(self) -> None:
+            self.index = 0
+
+        def grabFramebuffer(self) -> FakeImage:
+            self.index += 1
+            return FakeImage(self.index)
+
+    class FakeView:
+        def redraw(self) -> None:
+            pass
+
+    monkeypatch.setitem(
+        sys.modules,
+        "FreeCADGui",
+        SimpleNamespace(updateGui=lambda: None),
+    )
+
+    with pytest.raises(RuntimeError, match="did not stabilize"):
+        ContextReadsMixin._grab_stable_framebuffer(FakeView(), FakeViewer())
+
+
+class FakeVector(tuple):
+    def __new__(cls, x: float, y: float, z: float):
+        return super().__new__(cls, (float(x), float(y), float(z)))
+
+
+class FakeRotation:
+    def __init__(self, source: FakeVector, target: FakeVector) -> None:
+        self.source = source
+        self.target = target
+
+
+class FakePlacement:
+    def __init__(self, point: FakeVector, rotation: FakeRotation) -> None:
+        self.point = point
+        self.rotation = rotation
+
+
+FAKE_APP = SimpleNamespace(
+    Vector=FakeVector,
+    Rotation=FakeRotation,
+    Placement=FakePlacement,
+)
+
+
+def test_section_capture_applies_plane_and_restores_clipping(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AICAD_VISUAL_CACHE", str(tmp_path))
+    view = FakeActiveView()
+    install_fake_gui(monkeypatch, view)
+    context = ContextReadsMixin()
+    monkeypatch.setattr(context, "_modules", lambda: (FAKE_APP, None), raising=False)
+
+    result = context.capture_section_view(
+        plane="xz",
+        offset=12,
+        flip=True,
+        view="right",
+        fit=True,
+    )
+
+    placement = view.clipping_calls[0][3]
+    assert isinstance(placement, FakePlacement)
+    assert placement.point == (0.0, 12.0, 0.0)
+    assert placement.rotation.source == (0.0, 0.0, 1.0)
+    assert placement.rotation.target == (0.0, -1.0, 0.0)
+    assert view.clipping_calls[-1] == (0,)
+    assert view.clipping_plane is False
+    assert view.camera == "original-camera"
+    assert result["plane"] == "xz"
+    assert result["normal"] == [0.0, -1.0, 0.0]
+    assert result["kept_side"] == "positive_normal"
+    assert result["capped"] is False
+    assert result["clipping_restored"] is True
+
+
+def test_section_capture_failure_removes_temporary_clipping(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AICAD_VISUAL_CACHE", str(tmp_path))
+    view = FakeActiveView(fail_after=0)
+    install_fake_gui(monkeypatch, view)
+    context = ContextReadsMixin()
+    monkeypatch.setattr(context, "_modules", lambda: (FAKE_APP, None), raising=False)
+
+    with pytest.raises(RuntimeError, match="Synthetic capture failure"):
+        context.capture_section_view()
+
+    assert view.clipping_plane is False
+    assert view.clipping_calls[-1] == (0,)
+    assert list(tmp_path.glob("*.png")) == []
+
+
+def test_section_capture_restore_failure_discards_image(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FailingRestoreView(FakeActiveView):
+        def toggleClippingPlane(self, *arguments: object) -> None:
+            if arguments[0] == 0:
+                raise RuntimeError("Synthetic clipping restore failure.")
+            super().toggleClippingPlane(*arguments)
+
+    monkeypatch.setenv("AICAD_VISUAL_CACHE", str(tmp_path))
+    view = FailingRestoreView()
+    install_fake_gui(monkeypatch, view)
+    context = ContextReadsMixin()
+    monkeypatch.setattr(context, "_modules", lambda: (FAKE_APP, None), raising=False)
+
+    with pytest.raises(RuntimeError, match="clipping state could not be restored"):
+        context.capture_section_view()
+
+    assert list(tmp_path.glob("*.png")) == []
+
+
+def test_section_capture_refuses_existing_clipping_plane(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AICAD_VISUAL_CACHE", str(tmp_path))
+    view = FakeActiveView()
+    view.clipping_plane = True
+    install_fake_gui(monkeypatch, view)
+    context = ContextReadsMixin()
+
+    with pytest.raises(RuntimeError, match="already active"):
+        context.capture_section_view()
+
+    assert view.clipping_calls == []
+    assert view.clipping_plane is True
+
+
+def test_section_capture_schema_rejects_invalid_plane_or_offset() -> None:
+    registry = build_default_registry()
+
+    with pytest.raises(ToolInputError, match="allowed values"):
+        registry.validate_arguments(
+            "cad.capture_section_view",
+            {"plane": "diagonal"},
+        )
+    with pytest.raises(ToolInputError, match="offset must be a number"):
+        registry.validate_arguments(
+            "cad.capture_section_view",
+            {"offset": True},
+        )

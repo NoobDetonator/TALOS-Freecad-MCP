@@ -35,7 +35,7 @@ pedido
 
 ## Estratégia de seleção
 
-O agente não recebe as 91 ferramentas em toda chamada. Um seletor local procura
+O agente não recebe as 92 ferramentas em toda chamada. Um seletor local procura
 termos PT/EN, famílias, aliases e tags e envia um conjunto pequeno. Pedidos
 inseguros não recuperam mutações.
 
@@ -71,6 +71,10 @@ cliente MCP aguarda operações CAD longas por mais tempo que o dispatcher da GU
 Para inspeção visual, `cad.capture_views` entrega isométrica e vistas ortogonais
 em uma chamada e restaura a câmera. Isso reduz viagens MCP e evita que uma vista
 dependa do estado deixado pela anterior.
+
+Quando o interior importa, `cad.capture_section_view` aplica temporariamente um
+corte XY, XZ ou YZ com offset, captura o framebuffer real e restaura integralmente
+o estado visual.
 
 ## Métricas permanentes
 

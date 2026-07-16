@@ -19,8 +19,8 @@ pacotes de capacidade por domínio do FreeCAD.
 
 A baseline possui:
 
-- 91 ferramentas no `ToolRegistry`;
-- 16 ferramentas de leitura, 71 de modificação e quatro de exportação;
+- 92 ferramentas no `ToolRegistry`;
+- 17 ferramentas de leitura, 71 de modificação e quatro de exportação;
 - aproximadamente 102 KiB no catálogo completo serializado;
 - um snapshot de contexto versionado e paginado;
 - seleção local PT/EN;
@@ -187,9 +187,13 @@ Direção personalizada e folha de contato permanecem incrementos desta frente.
 
 ### Vista em corte
 
-`cad.capture_section_view` cria uma inspeção não destrutiva por plano XY, XZ,
-YZ, face, datum plane ou ponto e normal. Deve aceitar offset, direção, objetos,
-preenchimento do corte e enquadramento.
+`cad.capture_section_view` já cria uma inspeção não destrutiva por plano XY, XZ
+ou YZ, com offset, inversão do lado mantido e enquadramento. O corte é apenas
+visual, não fecha as faces seccionadas, não substitui um corte preexistente e
+restaura o viewport mesmo em falha.
+
+Planos por face, datum ou ponto e normal, além do preenchimento opcional das
+faces seccionadas, permanecem incrementos desta frente.
 
 ### Outros modos
 
@@ -507,7 +511,7 @@ Testes adicionais:
 ### E1.2 — percepção visual
 
 - captura em lote; **concluída**
-- vista em corte;
+- vista em corte XY/XZ/YZ com offset; **concluída**
 - transparência e isolamento;
 - folha de contato;
 - inspetor unificado inicial.
@@ -546,7 +550,7 @@ Testes adicionais:
 2. `describe_cad_capabilities`;
 3. erros estruturados; **concluído**
 4. `cad.capture_views`; **concluído**
-5. `cad.capture_section_view`;
+5. `cad.capture_section_view`; **concluído**
 6. transparência, isolamento e restauração da câmera;
 7. `cad.inspect_model`;
 8. referências entre passos;

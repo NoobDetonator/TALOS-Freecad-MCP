@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any, Iterable
 
 from aicad.core.context import (
@@ -14,6 +15,7 @@ from aicad.core.context import (
 from aicad.core.visual_cache import (
     MAX_CAPTURE_BATCH_BYTES,
     MAX_CAPTURE_BYTES,
+    capture_path,
     new_capture_path,
     prune_visual_cache,
     read_capture,
@@ -565,6 +567,120 @@ class ContextReadsMixin:
             "captures": captures,
         }
 
+    def capture_section_view(
+        self,
+        plane: str = "xy",
+        offset: float = 0.0,
+        flip: bool = False,
+        width: int = 640,
+        height: int = 480,
+        view: str = "isometric",
+        fit: bool = True,
+    ) -> dict[str, Any]:
+        """Capture a temporary principal-plane clipping section."""
+
+        checked_plane = str(plane).strip().lower()
+        if checked_plane not in {"xy", "xz", "yz"}:
+            raise ValueError("Section plane must be one of: xy, xz, yz.")
+        if (
+            isinstance(offset, bool)
+            or not isinstance(offset, (int, float))
+            or not math.isfinite(float(offset))
+            or abs(float(offset)) > 1_000_000
+        ):
+            raise ValueError("Section offset must be finite and within safe limits.")
+        if not isinstance(flip, bool):
+            raise ValueError("Section flip must be a boolean value.")
+        checked_width, checked_height = self._capture_dimensions(width, height)
+        checked_view = self._capture_view_name(view)
+        self._validate_capture_fit(fit)
+
+        active_view = self._active_gui_view()
+        has_clipping_plane = getattr(active_view, "hasClippingPlane", None)
+        toggle_clipping_plane = getattr(active_view, "toggleClippingPlane", None)
+        if has_clipping_plane is None or toggle_clipping_plane is None:
+            raise RuntimeError("Visual section capture is unavailable in this FreeCAD.")
+        if bool(has_clipping_plane()):
+            raise RuntimeError(
+                "A clipping plane is already active; disable it before capture."
+            )
+
+        app, _ = self._modules()
+        point, normal = self._section_plane_definition(
+            checked_plane,
+            float(offset),
+            flip,
+        )
+        placement = app.Placement(
+            app.Vector(*point),
+            app.Rotation(app.Vector(0, 0, 1), app.Vector(*normal)),
+        )
+        result = None
+        cleanup_required = False
+        try:
+            cleanup_required = True
+            toggle_clipping_plane(1, False, True, placement)
+            active_view.redraw()
+            self._sync_gui()
+            if not bool(has_clipping_plane()):
+                raise RuntimeError("The FreeCAD clipping plane could not be activated.")
+            result = self.capture_view(
+                width=checked_width,
+                height=checked_height,
+                view=checked_view,
+                fit=fit,
+            )
+        finally:
+            restore_error = None
+            if cleanup_required:
+                try:
+                    if bool(has_clipping_plane()):
+                        toggle_clipping_plane(0)
+                    active_view.redraw()
+                    self._sync_gui()
+                    if bool(has_clipping_plane()):
+                        raise RuntimeError("The clipping plane remains active.")
+                except Exception as exc:
+                    restore_error = exc
+            if restore_error is not None:
+                if result is not None:
+                    capture_path(str(result["capture_id"])).unlink(missing_ok=True)
+                raise RuntimeError(
+                    "The original FreeCAD clipping state could not be restored."
+                ) from restore_error
+
+        return {
+            **result,
+            "plane": checked_plane,
+            "offset_mm": float(offset),
+            "flip": flip,
+            "normal": list(normal),
+            "kept_side": "positive_normal" if flip else "negative_normal",
+            "capped": False,
+            "clipping_restored": True,
+        }
+
+    @staticmethod
+    def _section_plane_definition(
+        plane: str,
+        offset: float,
+        flip: bool,
+    ) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+        points = {
+            "xy": (0.0, 0.0, offset),
+            "xz": (0.0, offset, 0.0),
+            "yz": (offset, 0.0, 0.0),
+        }
+        normals = {
+            "xy": (0.0, 0.0, 1.0),
+            "xz": (0.0, 1.0, 0.0),
+            "yz": (1.0, 0.0, 0.0),
+        }
+        normal = normals[plane]
+        if flip:
+            normal = tuple(-component for component in normal)
+        return points[plane], normal
+
     @staticmethod
     def _capture_dimensions(width: int, height: int) -> tuple[int, int]:
         if (
@@ -740,9 +856,8 @@ class ContextReadsMixin:
             active_view.saveImage(str(path), width, height, "Current")
             return
 
-        image = get_viewer().grabFramebuffer()
-        if image.isNull() or image.width() <= 0 or image.height() <= 0:
-            raise RuntimeError("The FreeCAD viewport framebuffer is unavailable.")
+        viewer = get_viewer()
+        image = ContextReadsMixin._grab_stable_framebuffer(active_view, viewer)
 
         source_width = int(image.width())
         source_height = int(image.height())
@@ -775,3 +890,25 @@ class ContextReadsMixin:
         )
         if not image.save(str(path), "PNG"):
             raise RuntimeError("The FreeCAD viewport image could not be saved.")
+
+    @staticmethod
+    def _grab_stable_framebuffer(active_view: Any, viewer: Any) -> Any:
+        """Wait for two equal OpenGL frames after a visual-state change."""
+
+        previous = None
+        repaint = getattr(viewer, "repaint", None)
+        for _ in range(6):
+            active_view.redraw()
+            ContextReadsMixin._sync_gui()
+            if repaint is not None:
+                repaint()
+                ContextReadsMixin._sync_gui()
+            image = viewer.grabFramebuffer()
+            if image.isNull() or image.width() <= 0 or image.height() <= 0:
+                raise RuntimeError("The FreeCAD viewport framebuffer is unavailable.")
+            if previous is not None and image == previous:
+                return image
+            previous = image
+        raise RuntimeError(
+            "The FreeCAD viewport did not stabilize before visual capture."
+        )

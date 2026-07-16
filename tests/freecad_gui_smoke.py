@@ -403,6 +403,35 @@ def inspect() -> None:
         for capture in visual_views.result["captures"]:
             assert read_capture(capture["capture_id"]).startswith(b"\x89PNG")
         assert Gui.activeDocument().activeView().getCamera() == camera_before_views
+        active_view = Gui.activeDocument().activeView()
+        assert active_view.hasClippingPlane() is False
+        camera_before_section = active_view.getCamera()
+        visual_section = run_bridge_request(
+            bridge_client,
+            BridgeRequest(
+                request_id=uuid4(),
+                tool_name="cad.capture_section_view",
+                arguments={
+                    "plane": "xy",
+                    "offset": 2,
+                    "flip": False,
+                    "width": 640,
+                    "height": 480,
+                    "view": "isometric",
+                    "fit": True,
+                },
+                source="mcp",
+            ),
+        )
+        assert visual_section.status is BridgeResponseStatus.COMPLETED
+        assert visual_section.result["plane"] == "xy"
+        assert visual_section.result["normal"] == [0.0, 0.0, 1.0]
+        assert visual_section.result["kept_side"] == "negative_normal"
+        assert visual_section.result["capped"] is False
+        assert visual_section.result["clipping_restored"] is True
+        assert read_capture(visual_section.result["capture_id"]).startswith(b"\x89PNG")
+        assert active_view.hasClippingPlane() is False
+        assert active_view.getCamera() == camera_before_section
         assert main_window.grab().save(str(screenshot_path), "PNG")
 
         for _ in range(2):

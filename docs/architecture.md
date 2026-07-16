@@ -105,6 +105,10 @@ vistas independentes em uma chamada; o conjunto padrão é isométrica, frente,
 topo e direita. Cada imagem retorna um ID opaco e o recurso
 `aicad://view/{capture_id}`.
 
+`cad.capture_section_view` acrescenta um clipping temporário por XY, XZ ou YZ.
+Offset e lado mantido são explícitos; o resultado informa que as faces não são
+fechadas. Um clipping preexistente nunca é substituído.
+
 O cache aceita até 8 MiB por imagem, mantém quantidade limitada de capturas e
 fica fora do Git. As capturas desativam animações temporariamente, estabilizam o
 viewport, ocultam overlays e restauram o estado visual original mesmo em falha.

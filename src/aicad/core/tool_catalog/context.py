@@ -11,6 +11,7 @@ from aicad.core.tool_catalog.schemas import (
     PARAMETERS_RESULT,
     REFERENCE,
     RESOLUTION_RESULT,
+    SECTION_CAPTURE_RESULT,
     _object_schema,
     _spec,
 )
@@ -326,5 +327,70 @@ def context_tool_specs() -> tuple[ToolSpec, ...]:
             ),
             order=95,
             output_schema=CAPTURES_RESULT,
+        ),
+        _spec(
+            "cad.capture_section_view",
+            "Capture a non-destructive visual section through the active model "
+            "using the XY, XZ or YZ plane. Offset is measured from the global "
+            "origin along the plane normal. The default keeps the negative-normal "
+            "side; flip=true keeps the positive-normal side. This is viewport "
+            "clipping, so cut faces are not capped. The temporary clipping plane, "
+            "camera and visual overlays are restored before return. Refuses to "
+            "replace a clipping plane already configured by the user.",
+            ToolRisk.READ,
+            _object_schema(
+                {
+                    "plane": {
+                        "type": "string",
+                        "enum": ["xy", "xz", "yz"],
+                    },
+                    "offset": {
+                        "type": "number",
+                        "minimum": -1_000_000,
+                        "maximum": 1_000_000,
+                    },
+                    "flip": {"type": "boolean"},
+                    "width": {"type": "integer", "minimum": 320, "maximum": 1920},
+                    "height": {"type": "integer", "minimum": 240, "maximum": 1080},
+                    "view": {
+                        "type": "string",
+                        "enum": [
+                            "current",
+                            "isometric",
+                            "top",
+                            "bottom",
+                            "front",
+                            "rear",
+                            "left",
+                            "right",
+                        ],
+                    },
+                    "fit": {"type": "boolean"},
+                },
+                (),
+            ),
+            family="context",
+            aliases=(
+                "vista em corte",
+                "corte visual",
+                "raio x",
+                "section view",
+                "clipping plane",
+            ),
+            tags=(
+                "visual",
+                "corte",
+                "seção",
+                "interior",
+                "section",
+                "clipping",
+                "inspection",
+            ),
+            examples=(
+                "Mostre um corte XY da peça na altura Z igual a 10 mm.",
+                "Capture an isometric YZ section keeping the positive side.",
+            ),
+            order=97,
+            output_schema=SECTION_CAPTURE_RESULT,
         ),
     )

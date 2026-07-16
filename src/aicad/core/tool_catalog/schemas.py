@@ -233,6 +233,38 @@ CAPTURES_RESULT = {
     ],
 }
 
+SECTION_CAPTURE_RESULT = {
+    "type": "object",
+    "properties": {
+        **CAPTURE_RESULT["properties"],
+        "plane": {"type": "string"},
+        "offset_mm": {"type": "number"},
+        "flip": {"type": "boolean"},
+        "normal": {
+            "type": "array",
+            "items": {"type": "number"},
+            "minItems": 3,
+            "maxItems": 3,
+        },
+        "kept_side": {
+            "type": "string",
+            "enum": ["negative_normal", "positive_normal"],
+        },
+        "capped": {"type": "boolean"},
+        "clipping_restored": {"type": "boolean"},
+    },
+    "required": [
+        *CAPTURE_RESULT["required"],
+        "plane",
+        "offset_mm",
+        "flip",
+        "normal",
+        "kept_side",
+        "capped",
+        "clipping_restored",
+    ],
+}
+
 
 def _spec(
     name: str,

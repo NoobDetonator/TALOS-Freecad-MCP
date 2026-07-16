@@ -53,7 +53,9 @@ Cursor, em `.cursor/mcp.json`:
 7. Valide o documento e meça o resultado.
 8. Capture `isometric`, `front`, `top` e `right` de uma vez com
    `cad.capture_views`. Use `cad.capture_view` apenas quando uma vista basta.
-9. Exporte STL ou STEP somente para um destino autorizado pelo usuário.
+9. Use `cad.capture_section_view` com plano e offset quando precisar inspecionar
+   o interior sem alterar a geometria.
+10. Exporte STL ou STEP somente para um destino autorizado pelo usuário.
 
 `search_cad_capabilities` aceita consulta vazia para paginação estável, filtros
 `families` e `risks`, `limit` de até 20 e `cursor`. O resultado não inclui schemas
@@ -74,6 +76,7 @@ Receitas disponíveis: `mounting_plate`, `flange`, `rectangular_pad`,
 - `safe_state_restored=null` exige reler o contexto antes de qualquer nova
   mutação;
 - capturas orientadas restauram a câmera e a preferência de animação ao final;
+- cortes visuais não substituem um plano de clipping já ativo no FreeCAD;
 - operações longas podem levar mais de um minuto;
 - `cad.undo` desfaz a última transação confirmada;
 - toda ação entra na auditoria local.
