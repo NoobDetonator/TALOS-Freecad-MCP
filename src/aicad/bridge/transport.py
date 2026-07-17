@@ -20,7 +20,6 @@ from aicad.bridge.protocol import (
     BridgeError,
     BridgeErrorCode,
     BridgeProtocolError,
-    BridgeRequest,
     BridgeResponse,
     BridgeResponseStatus,
     BridgeTransportRequest,

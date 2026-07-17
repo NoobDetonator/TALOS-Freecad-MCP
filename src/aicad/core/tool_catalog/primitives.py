@@ -25,6 +25,7 @@ def primitive_tool_specs() -> tuple[ToolSpec, ...]:
                 "axis on the origin."
             ),
             risk=ToolRisk.MODIFY,
+            compensatable=True,
             input_schema={
                 "type": "object",
                 "properties": {
@@ -35,7 +36,7 @@ def primitive_tool_specs() -> tuple[ToolSpec, ...]:
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
-                        "pattern": "[A-Za-z][A-Za-z0-9_-]*",
+                        "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
                     },
                 },
                 "required": ["length", "width", "height"],
@@ -65,6 +66,7 @@ def primitive_tool_specs() -> tuple[ToolSpec, ...]:
                 "Create a box with length, width and height.",
             ),
             canonical_order=100,
+            output_schema=OBJECT_RESULT,
         ),
         ToolSpec(
             name="cad.create_cylinder",
@@ -79,6 +81,7 @@ def primitive_tool_specs() -> tuple[ToolSpec, ...]:
                 "offset."
             ),
             risk=ToolRisk.MODIFY,
+            compensatable=True,
             input_schema={
                 "type": "object",
                 "properties": {
@@ -88,7 +91,7 @@ def primitive_tool_specs() -> tuple[ToolSpec, ...]:
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
-                        "pattern": "[A-Za-z][A-Za-z0-9_-]*",
+                        "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
                     },
                 },
                 "required": ["diameter", "height"],
@@ -119,6 +122,7 @@ def primitive_tool_specs() -> tuple[ToolSpec, ...]:
                 "Create a cylinder with diameter and height.",
             ),
             canonical_order=110,
+            output_schema=OBJECT_RESULT,
         ),
         _spec(
             "cad.create_cone",

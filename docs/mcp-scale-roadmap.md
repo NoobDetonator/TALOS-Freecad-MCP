@@ -227,16 +227,18 @@ capturas.
 
 ### Inspetor unificado
 
-`cad.inspect_model` combina:
+`inspect_cad_model` já entrega a primeira versão unificada na fachada MCP:
 
+- contexto e token inicial;
 - validade do documento;
-- medidas e dependências;
-- interferência e folga;
-- vistas adaptativas;
-- cortes automáticos;
-- findings estruturados;
-- sugestões de correção;
-- recursos MCP com imagens e metadados.
+- medidas de até oito objetos;
+- detalhes e dependências opcionais;
+- até quatro vistas como recursos MCP;
+- token final e detecção de edição concorrente;
+- resposta parcial estruturada quando uma leitura falha.
+
+Interferência, folga adaptativa, findings de domínio e cortes automáticos
+continuam incrementos do inspetor.
 
 ## Frente 4 — CAD-IR e composição
 
@@ -361,6 +363,13 @@ Usar recursos MCP padrão quando o cliente suportar. Como Tasks ainda é uma par
 experimental do protocolo, manter o polling atual como fallback compatível.
 
 ## Frente 10 — desempenho
+
+### Telemetria ponta a ponta
+
+`get_mcp_performance_snapshot` registra, somente em memória, bytes/tokens
+estimados, latência do MCP e bridge, fila da GUI, confirmação e execução no
+FreeCAD. O contrato opcional `BridgeTiming` mantém clientes anteriores
+compatíveis e evita misturar espera humana com custo geométrico.
 
 ### Recompute incremental
 
@@ -517,7 +526,7 @@ Testes adicionais:
 - vista em corte XY/XZ/YZ com offset; **concluída**
 - transparência e isolamento;
 - folha de contato;
-- inspetor unificado inicial.
+- inspetor unificado inicial; **concluído**
 
 ### E1.3 — CAD-IR
 
@@ -555,7 +564,7 @@ Testes adicionais:
 4. `cad.capture_views`; **concluído**
 5. `cad.capture_section_view`; **concluído**
 6. transparência, isolamento e restauração da câmera;
-7. `cad.inspect_model`;
+7. `inspect_cad_model`; **concluído**
 8. referências entre passos;
 9. preflight e preview;
 10. pacotes por Workbench;

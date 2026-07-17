@@ -20,6 +20,7 @@ class CapabilityCard(TypedDict):
     name: str
     family: str
     risk: str
+    compensatable: bool
     summary: str
     aliases: list[str]
     score: int
@@ -50,6 +51,7 @@ class CapabilityDescription(TypedDict):
     name: str
     description: str
     risk: str
+    compensatable: bool
     input_schema: dict[str, Any]
     output_schema: dict[str, Any] | None
     family: str
@@ -186,6 +188,7 @@ class CapabilityCatalog:
                     "name": spec.name,
                     "family": spec.family,
                     "risk": spec.risk.value,
+                    "compensatable": spec.compensatable,
                     "summary": _compact_summary(spec.description),
                     "aliases": list(spec.aliases[:MAX_CARD_ALIASES]),
                     "score": match.score if match is not None else 0,
@@ -247,6 +250,7 @@ class CapabilityCatalog:
                     "name": spec.name,
                     "description": spec.description,
                     "risk": spec.risk.value,
+                    "compensatable": spec.compensatable,
                     "input_schema": spec.input_schema,
                     "output_schema": spec.output_schema,
                     "family": spec.family,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 
 from aicad.core.visual_cache import (
     MAX_CACHED_CAPTURES,
@@ -14,10 +15,11 @@ from aicad.core.visual_cache import (
 def test_visual_cache_uses_opaque_ids_and_prunes_old_files(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("AICAD_VISUAL_CACHE", str(tmp_path))
     created = []
+    base_time = time.time() - MAX_CACHED_CAPTURES - 10
     for index in range(MAX_CACHED_CAPTURES + 2):
         capture_id, path = new_capture_path()
         path.write_bytes(b"\x89PNG\r\n\x1a\n" + bytes([index]))
-        os.utime(path, (index + 1, index + 1))
+        os.utime(path, (base_time + index, base_time + index))
         created.append(capture_id)
 
     prune_visual_cache()

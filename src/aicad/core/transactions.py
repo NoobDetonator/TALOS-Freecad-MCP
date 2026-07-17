@@ -28,6 +28,10 @@ _CURRENT_TRACE: ContextVar[CadTransactionTrace | None] = ContextVar(
     "aicad_current_transaction_trace",
     default=None,
 )
+_LAST_TRACE: ContextVar[CadTransactionTrace | None] = ContextVar(
+    "aicad_last_transaction_trace",
+    default=None,
+)
 
 
 @contextmanager
@@ -41,9 +45,11 @@ def transaction_trace(
         call_id=call_id,
     )
     token = _CURRENT_TRACE.set(trace)
+    _LAST_TRACE.set(None)
     try:
         yield trace
     finally:
+        _LAST_TRACE.set(trace)
         _CURRENT_TRACE.reset(token)
 
 
@@ -51,11 +57,16 @@ def current_transaction_trace() -> CadTransactionTrace | None:
     return _CURRENT_TRACE.get()
 
 
+def last_transaction_trace() -> CadTransactionTrace | None:
+    """Return evidence from the most recently finished trace in this context."""
+    return _LAST_TRACE.get()
+
+
 def transaction_title(title: str) -> str:
     trace = current_transaction_trace()
     if trace is None:
-        return f"AI CAD: {title}"
-    trace.label = f"AI CAD [{trace.transaction_id}]: {title}"
+        return f"TALOS: {title}"
+    trace.label = f"TALOS [{trace.transaction_id}]: {title}"
     return trace.label
 
 

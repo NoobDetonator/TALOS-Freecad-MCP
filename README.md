@@ -16,38 +16,42 @@ regras do produto permanecem independentes dele.
 ## Estado atual
 
 - FreeCAD 1.1.1 instalado no Windows;
-- Workbench **AI CAD** com painel lateral e ponte MCP local;
-- 92 ferramentas no mesmo `ToolRegistry` para chat e MCP;
+- Workbench **TALOS MCP** com painel de ponte, capacidades, aprovações e atividade;
+- 92 ferramentas no mesmo `ToolRegistry` para a ponte e o servidor MCP;
 - M0 a M7 concluídos; E1 — MCP em escala em execução;
 - modelagem básica e avançada, Sketch, montagens, rolamentos e exportação;
 - mutações transacionais, validadas, auditadas e reversíveis;
 - erros MCP categorizados, recuperáveis e com estado seguro explícito;
 - descoberta compacta e paginada, com schemas completos somente sob demanda;
 - captura multivista e vistas em corte XY/XZ/YZ com restauração do viewport;
-- aceitação automática visível por padrão; exportações sempre manuais.
+- `inspect_cad_model` para contexto, validação, medidas e imagens em uma chamada;
+- telemetria em memória para bytes/tokens estimados, bridge, GUI e confirmação;
+- aprovação automática ligada por padrão apenas para mutações compensáveis; exportações e operações não reversíveis sempre manuais.
 
-A IA interna com DeepSeek continua disponível, mas está em manutenção. O foco do
-produto é o uso por agentes externos via MCP.
+O painel não expõe chat interno, seletor de provedor nem campo de chave. O backend
+legado da IA interna permanece somente em manutenção, sem fazer parte do fluxo
+principal do produto.
 
 ### Atualizações recentes
 
 - E1.1 concluída com busca escalável de capacidades e schemas sob demanda;
-- erros recuperáveis compartilhados entre chat, ponte e MCP;
+- erros recuperáveis compartilhados entre catálogo, ponte e MCP;
 - capturas independentes de vários ângulos em uma única chamada;
 - corte visual não destrutivo por plano e offset;
-- framebuffer estabilizado antes da captura para evitar imagens parciais.
+- framebuffer estabilizado antes da captura para evitar imagens parciais;
+- baseline holdout separada com rank-1, MRR, precisão@K e falsos positivos.
 
 ## Início rápido
 
 1. Prepare a `.venv` e vincule o Workbench conforme
    [docs/installation.md](docs/installation.md).
 2. Abra o FreeCAD normalmente.
-3. Selecione o Workbench **AI CAD**.
+3. Selecione o Workbench **TALOS MCP**.
 4. Mantenha o painel aberto para publicar a ponte MCP.
 5. Conecte seu agente seguindo [docs/mcp-integration.md](docs/mcp-integration.md).
 
 O repositório já inclui `.mcp.json`. No uso diário não é necessário iniciar o
-FreeCAD por script.
+FreeCAD por script. O painel também oferece a configuração MCP pronta para copiar.
 
 ## O que o catálogo cobre
 
@@ -65,6 +69,10 @@ FreeCAD por script.
 Use `search_cad_capabilities` para encontrar cartões compactos e
 `describe_cad_capabilities` para carregar somente os schemas escolhidos.
 `available_cad_tools` permanece como compatibilidade e auditoria completa.
+Para verificação, `inspect_cad_model` agrupa as leituras comuns e confirma por
+`DocumentStateToken` que o documento não mudou durante a inspeção.
+`get_mcp_performance_snapshot` mostra métricas apenas do processo atual, sem
+armazenar argumentos, nomes de arquivos ou conteúdo dos pedidos.
 
 ## Exemplo validado
 
@@ -93,12 +101,22 @@ uma alteração:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\testar.ps1
 ```
 
+A verificação local inclui Ruff, checagem de tipos do núcleo, cobertura mínima,
+testes unitários, oito smokes no FreeCADCmd e o smoke gráfico do painel MCP.
+A mesma base neutra roda no CI do Windows sem exigir uma instalação do FreeCAD.
+
 A suíte cobre mais de 200 testes unitários, FreeCADCmd e a interface gráfica real. Para
 medir a seleção de ferramentas sem rede ou FreeCAD:
 
 ```powershell
 .\scripts\benchmark_agent.ps1 -Strategy selector
+.\scripts\benchmark_agent.ps1 -Strategy selector -Corpus benchmarks\agent-corpus-heldout-v1.json
 ```
+
+Os corpora históricos verificam regressões conhecidas. O corpus `heldout` não
+reutiliza frases canônicas do catálogo e mede rank-1, MRR, precisão@K,
+esclarecimentos e exposição indevida de mutações. A economia de schema reportada
+é teórica e assume ausência de cache no cliente MCP.
 
 ## Regras do repositório
 

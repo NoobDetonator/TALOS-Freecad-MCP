@@ -97,4 +97,4 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Ambiente preparado com sucesso."
-Write-Host "Use .\scripts\iniciar.ps1 para abrir o AI CAD."
+Write-Host "Use .\scripts\iniciar.ps1 para abrir o TALOS MCP."

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from aicad.core.tool_catalog.schemas import (
+    CAD_EXPORT_RESULT,
+    DOCUMENT_LIST_RESULT,
+    DOCUMENT_RESULT,
+    SAVED_DOCUMENT_RESULT,
     CAD_EXPORT_SCHEMA,
     EMPTY_OBJECT,
 )
@@ -21,6 +25,7 @@ def document_tool_specs() -> tuple[ToolSpec, ...]:
             risk=ToolRisk.READ,
             input_schema=EMPTY_OBJECT,
             family="document",
+            output_schema=DOCUMENT_LIST_RESULT,
             aliases=(
                 "listar documentos",
                 "documentos abertos",
@@ -50,12 +55,13 @@ def document_tool_specs() -> tuple[ToolSpec, ...]:
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
-                        "pattern": "[A-Za-z][A-Za-z0-9_-]*",
+                        "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
                     },
                 },
                 "additionalProperties": False,
             },
             family="document",
+            output_schema=DOCUMENT_RESULT,
             aliases=(
                 "novo documento",
                 "criar documento",
@@ -90,6 +96,7 @@ def document_tool_specs() -> tuple[ToolSpec, ...]:
                 "additionalProperties": False,
             },
             family="document",
+            output_schema=DOCUMENT_RESULT,
             aliases=(
                 "ativar documento",
                 "trocar documento",
@@ -125,6 +132,7 @@ def document_tool_specs() -> tuple[ToolSpec, ...]:
                 "additionalProperties": False,
             },
             family="document",
+            output_schema=SAVED_DOCUMENT_RESULT,
             aliases=(
                 "salvar documento",
                 "salvar projeto",
@@ -149,6 +157,7 @@ def document_tool_specs() -> tuple[ToolSpec, ...]:
             risk=ToolRisk.EXPORT,
             input_schema=CAD_EXPORT_SCHEMA,
             family="export",
+            output_schema=CAD_EXPORT_RESULT,
             aliases=(
                 "exportar stl",
                 "export stl",
@@ -184,6 +193,7 @@ def document_tool_specs() -> tuple[ToolSpec, ...]:
             risk=ToolRisk.EXPORT,
             input_schema=CAD_EXPORT_SCHEMA,
             family="export",
+            output_schema=CAD_EXPORT_RESULT,
             aliases=(
                 "exportar step",
                 "export step",

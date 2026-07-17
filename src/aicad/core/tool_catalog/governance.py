@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from aicad.core.tool_catalog.schemas import EMPTY_OBJECT
+from aicad.core.tool_catalog.schemas import (
+    AUDIT_EXPORT_RESULT,
+    AUDIT_HISTORY_RESULT,
+    EMPTY_OBJECT,
+    UNDO_RESULT,
+    VALIDATION_RESULT,
+)
 from aicad.core.tool_registry import ToolRisk, ToolSpec
 
 
@@ -13,6 +19,7 @@ def governance_tool_specs() -> tuple[ToolSpec, ...]:
             description="Recompute and report document and shape errors.",
             risk=ToolRisk.READ,
             input_schema=EMPTY_OBJECT,
+            output_schema=VALIDATION_RESULT,
             family="validation",
             aliases=(
                 "validar",
@@ -41,6 +48,7 @@ def governance_tool_specs() -> tuple[ToolSpec, ...]:
             description="Undo the last committed CAD transaction.",
             risk=ToolRisk.MODIFY,
             input_schema=EMPTY_OBJECT,
+            output_schema=UNDO_RESULT,
             family="history",
             aliases=(
                 "desfazer",
@@ -83,6 +91,7 @@ def governance_tool_specs() -> tuple[ToolSpec, ...]:
                 },
                 "additionalProperties": False,
             },
+            output_schema=AUDIT_HISTORY_RESULT,
             family="history",
             aliases=(
                 "histórico",
@@ -117,6 +126,7 @@ def governance_tool_specs() -> tuple[ToolSpec, ...]:
                 "required": ["destination"],
                 "additionalProperties": False,
             },
+            output_schema=AUDIT_EXPORT_RESULT,
             family="history",
             aliases=(
                 "exportar histórico",

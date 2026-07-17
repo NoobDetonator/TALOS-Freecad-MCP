@@ -34,12 +34,13 @@ Se `AiCad` já existir, confira seu destino antes de remover ou substituir.
 ## 3. Abrir
 
 1. Abra o FreeCAD 1.1.1.
-2. Selecione o Workbench **AI CAD**.
+2. Selecione o Workbench **TALOS MCP**.
 3. Confirme que o painel apareceu à direita.
-4. Teste `resumo` no chat ou `health` pelo MCP.
+4. Confirme "Ponte MCP ativa" no painel e teste `health` pelo MCP.
 
-O painel inicia com aceitação automática de mutações. Desmarque a opção para
-exigir confirmação manual. Exportações sempre exigem confirmação.
+A aprovação automática inicia ativada, mas vale apenas para mutações marcadas
+como compensáveis; exportações e operações não reversíveis
+continuam exigindo confirmação manual.
 
 ## Atualização
 
@@ -53,5 +54,5 @@ e remova somente `%APPDATA%\FreeCAD\v1-1\Mod\AiCad`.
 | --- | --- |
 | Workbench não aparece | conferir o junction e `InitGui.py` |
 | Falha ao importar `aicad` | recriar a `.venv` com Python 3.11 e reinstalar o projeto |
-| Ponte indisponível | ativar o Workbench **AI CAD** e manter o FreeCAD aberto |
+| Ponte indisponível | ativar o Workbench **TALOS MCP** e manter o FreeCAD aberto |
 | Dependência ausente | repetir a instalação editável na `.venv` |

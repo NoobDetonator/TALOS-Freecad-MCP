@@ -19,9 +19,14 @@ from aicad.bridge.protocol import (
     BridgeRequest,
     BridgeResponse,
     BridgeResponseStatus,
+    BridgeTiming,
     validate_request_payload,
 )
 from aicad.core.tool_registry import ToolRegistry, ToolRisk
+from aicad.core.transactions import (
+    CadTransactionOutcome,
+    last_transaction_trace,
+)
 from aicad.core.tool_results import (
     ToolErrorCategory,
     ToolRecoveryAction,
@@ -48,10 +53,13 @@ class _DispatchEntry:
     fingerprint: str
     risk: ToolRisk
     deadline: float
+    submitted_at: float
     response: BridgeResponse | None = None
     event: Event = field(default_factory=Event)
     executing: bool = False
     audit_action_id: UUID | None = None
+    confirmation_started_at: float | None = None
+    execution_started_at: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,6 +178,7 @@ class BridgeDispatcher:
                     fingerprint=fingerprint,
                     risk=risk,
                     deadline=now + self._request_timeout,
+                    submitted_at=now,
                     response=response,
                     audit_action_id=(
                         self._audit_service.begin_tool(
@@ -234,10 +243,12 @@ class BridgeDispatcher:
                     continue
                 if entry.risk is ToolRisk.READ:
                     entry.executing = True
+                    entry.execution_started_at = self._clock()
                     request_to_execute = entry.request
                     audit_action_id = entry.audit_action_id
                     break
                 self._active_confirmation = request_id
+                entry.confirmation_started_at = self._clock()
                 confirmation_to_show = entry.request
                 break
 
@@ -340,11 +351,15 @@ class BridgeDispatcher:
                     BridgeErrorCode.CONFIRMATION_DENIED,
                     "The CAD operation was cancelled by the user.",
                 )
+                response = response.model_copy(
+                    update={"timing": self._timing(entry, self._clock())}
+                )
                 entry.response = response
                 entry.event.set()
                 self._active_confirmation = None
                 return response
             entry.executing = True
+            entry.execution_started_at = self._clock()
             request = entry.request
             audit_action_id = entry.audit_action_id
 
@@ -382,9 +397,14 @@ class BridgeDispatcher:
                 diagnostic.message,
                 category=diagnostic.category,
                 retryable=diagnostic.retryable,
-                safe_state_restored=True,
+                safe_state_restored=self._safe_state_after_failure(
+                    entry.risk, expected_action_id=audit_action_id
+                ),
                 suggested_actions=diagnostic.suggested_actions,
             )
+        response = response.model_copy(
+            update={"timing": self._timing(entry, self._clock())}
+        )
         self._finish(request_id, response)
         return response
 
@@ -423,6 +443,10 @@ class BridgeDispatcher:
             entry = self._entries.get(request_id)
             if entry is None or self._is_terminal(entry.response):
                 return
+            if response.timing is None:
+                response = response.model_copy(
+                    update={"timing": self._timing(entry, self._clock())}
+                )
             entry.response = response
             entry.executing = False
             entry.event.set()
@@ -454,11 +478,14 @@ class BridgeDispatcher:
         return expired
 
     def _expire_entry_locked(self, entry: _DispatchEntry) -> None:
-        entry.response = self._error_response(
+        response = self._error_response(
             entry.request.request_id,
             BridgeResponseStatus.EXPIRED,
             BridgeErrorCode.TIMEOUT,
             "The bridge request expired before completion.",
+        )
+        entry.response = response.model_copy(
+            update={"timing": self._timing(entry, self._clock())}
         )
         entry.executing = False
         entry.event.set()
@@ -515,6 +542,37 @@ class BridgeDispatcher:
         )
 
     @staticmethod
+    def _timing(entry: _DispatchEntry, finished_at: float) -> BridgeTiming:
+        queue_finished_at = (
+            entry.confirmation_started_at
+            if entry.confirmation_started_at is not None
+            else entry.execution_started_at
+            if entry.execution_started_at is not None
+            else finished_at
+        )
+        confirmation_finished_at = (
+            entry.execution_started_at
+            if entry.execution_started_at is not None
+            else finished_at
+        )
+        confirmation_wait = (
+            confirmation_finished_at - entry.confirmation_started_at
+            if entry.confirmation_started_at is not None
+            else 0.0
+        )
+        execution = (
+            finished_at - entry.execution_started_at
+            if entry.execution_started_at is not None
+            else 0.0
+        )
+        return BridgeTiming(
+            queue_wait_ms=max(0.0, queue_finished_at - entry.submitted_at) * 1000,
+            confirmation_wait_ms=max(0.0, confirmation_wait) * 1000,
+            execution_ms=max(0.0, execution) * 1000,
+            gui_total_ms=max(0.0, finished_at - entry.submitted_at) * 1000,
+        )
+
+    @staticmethod
     def _error_response(
         request_id: UUID,
         status: BridgeResponseStatus,
@@ -540,6 +598,30 @@ class BridgeDispatcher:
             status=status,
             error=BridgeError(code=code, message=message, **overrides),
         )
+
+    @staticmethod
+    def _safe_state_after_failure(
+        risk: ToolRisk,
+        expected_action_id: UUID | None = None,
+    ) -> bool | None:
+        if risk is ToolRisk.READ:
+            return True
+        if expected_action_id is None:
+            return None
+        trace = last_transaction_trace()
+        if (
+            trace is None
+            or trace.action_id != expected_action_id
+            or trace.outcome is CadTransactionOutcome.UNKNOWN
+        ):
+            return None
+        if trace.outcome in {
+            CadTransactionOutcome.ABORTED,
+            CadTransactionOutcome.UNDONE,
+        }:
+            return True
+
+        return False
 
     @classmethod
     def _failure_diagnostic(

@@ -2,7 +2,7 @@ import pytest
 
 from aicad.adapters.freecad_adapter import FreeCadAdapter
 from aicad.core.tool_registry import ToolInputError, ToolRisk, build_default_registry
-from aicad.ui.chat_panel import automatic_approval_default
+from aicad.ui.talos_panel import automatic_approval_default
 
 
 FOUNDATION_TOOLS = (

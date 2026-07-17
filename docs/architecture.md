@@ -18,7 +18,8 @@
 | `adapters/freecad` | operações geométricas e transações no FreeCAD |
 | `bridge` | protocolo autenticado, fila, confirmação e dispatcher da GUI |
 | `orchestration` | planos imutáveis, receitas, aprovação e rollback |
-| `mcp_server.py` | projeção do catálogo, planos, recursos e prompts pelo MCP |
+| `mcp_server.py` | projeção do catálogo, planos, inspeção e recursos pelo MCP |
+| `mcp_telemetry.py` | métricas efêmeras, limitadas e sem conteúdo dos pedidos |
 | `audit` | eventos locais, redaction, retenção e exportação controlada |
 | `ui` | painel, estado visível de aprovação e integração Qt |
 
@@ -42,6 +43,11 @@ A GUI cria uma sessão efêmera com host loopback, porta e token fortes. O arqui
 de descoberta fica no runtime local, fora do Git. O cliente MCP aguarda por mais
 tempo que o dispatcher da GUI, permitindo operações CAD longas sem falso timeout.
 
+Respostas terminais podem incluir `BridgeTiming`: fila até a thread da GUI,
+espera visível de confirmação, execução do handler e tempo total. O servidor
+agrega essas medidas em memória, separadas da latência MCP e sem timestamps de
+parede ou conteúdo do pedido.
+
 ## Risco e aprovação
 
 As ferramentas são classificadas como:
@@ -50,7 +56,8 @@ As ferramentas são classificadas como:
 - `modify`: mutação reversível submetida à política visível do painel;
 - `export`: gravação externa sempre confirmada manualmente.
 
-A aceitação automática inicia ligada para mutações, mas pode ser desmarcada.
+A aprovação automática inicia ligada e só pode cobrir mutações compensáveis.
+Exportações e operações não reversíveis continuam manuais.
 Ela não remove validação, auditoria, transação ou undo e nunca vale para exportar.
 
 ## Contrato de mutação
@@ -81,6 +88,11 @@ passos anteriores e confirma que o fingerprint voltou ao estado inicial.
 O agente deve ler o contexto antes de editar. O snapshot inclui documento,
 seleção, objetos recentes e token de estado. Resolução por nome ou label nunca
 escolhe silenciosamente entre candidatos ambíguos.
+
+`inspect_cad_model` é uma composição somente de leitura na fachada MCP. Ela
+executa capacidades registradas, limita objetos e vistas e compara o token
+inicial ao final. Assim reduz viagens do agente sem criar um segundo caminho
+geométrico fora do `ToolRegistry`.
 
 Operações por aresta usam assinaturas geométricas, não índices topológicos crus.
 Sketches expõem índices limitados e devem ser consultados novamente após trim ou

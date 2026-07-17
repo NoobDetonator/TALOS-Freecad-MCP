@@ -4,19 +4,20 @@ from __future__ import annotations
 def register_commands() -> None:
     import FreeCADGui as Gui
 
-    class ShowChatCommand:
+    class ShowMcpPanelCommand:
         def GetResources(self) -> dict[str, str]:
             return {
-                "MenuText": "Abrir AI CAD",
-                "ToolTip": "Abre o painel de modelagem assistida por IA",
+                "MenuText": "Abrir TALOS MCP",
+                "ToolTip": "Abre o painel de operação e diagnóstico do servidor MCP",
             }
 
         def Activated(self) -> None:
-            from aicad.ui.chat_panel import show_chat_panel
+            from aicad.ui.talos_panel import show_mcp_panel
 
-            show_chat_panel()
+            show_mcp_panel()
 
         def IsActive(self) -> bool:
             return True
 
-    Gui.addCommand("AICad_ShowChat", ShowChatCommand())
+    Gui.addCommand("Talos_ShowMcpPanel", ShowMcpPanelCommand())
+    Gui.addCommand("AICad_ShowChat", ShowMcpPanelCommand())

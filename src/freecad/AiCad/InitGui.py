@@ -43,20 +43,20 @@ if root_path is not None:
 
 
 class AICadWorkbench(Workbench):
-    MenuText = "AI CAD"
-    ToolTip = "Modelagem CAD paramétrica assistida por IA"
+    MenuText = "TALOS MCP"
+    ToolTip = "Servidor MCP seguro e estruturado para o FreeCAD"
 
     def Initialize(self) -> None:
         from aicad.freecad_commands import register_commands
 
         register_commands()
-        self.appendToolbar("AI CAD", ["AICad_ShowChat"])
-        self.appendMenu("AI CAD", ["AICad_ShowChat"])
+        self.appendToolbar("TALOS MCP", ["Talos_ShowMcpPanel"])
+        self.appendMenu("TALOS MCP", ["Talos_ShowMcpPanel"])
 
     def Activated(self) -> None:
-        from aicad.ui.chat_panel import show_chat_panel
+        from aicad.ui.talos_panel import show_mcp_panel
 
-        show_chat_panel()
+        show_mcp_panel()
 
     def GetClassName(self) -> str:
         return "Gui::PythonWorkbench"

@@ -7,6 +7,8 @@ import re
 from collections.abc import Mapping
 from typing import Any, Callable
 
+from aicad.core.schema_validation import check_json_schema, validate_json_arguments
+
 
 class ToolRisk(StrEnum):
     READ = "read"
@@ -21,6 +23,7 @@ class ToolSpec:
     risk: ToolRisk
     input_schema: dict[str, Any]
     output_schema: dict[str, Any] | None = None
+    compensatable: bool = False
     family: str = "general"
     aliases: tuple[str, ...] = ()
     tags: tuple[str, ...] = ()
@@ -47,6 +50,9 @@ class ToolRegistry:
     ) -> None:
         if spec.name in self._specs:
             raise ValueError(f"Tool already registered: {spec.name}")
+        check_json_schema(spec.name, spec.input_schema)
+        if spec.output_schema is not None:
+            check_json_schema(f"{spec.name} output", spec.output_schema)
         self._specs[spec.name] = spec
         if handler is not None:
             self._handlers[spec.name] = handler
@@ -100,7 +106,7 @@ class ToolRegistry:
             checked_arguments = dict(arguments)
         else:
             raise ToolInputError(f"Arguments for {name} must be an object.")
-        self._validate_arguments(spec, checked_arguments)
+        validate_json_arguments(spec.name, spec.input_schema, checked_arguments)
         return checked_arguments
 
     @staticmethod

@@ -92,6 +92,8 @@ class CompositeValidatedPlan(BaseModel):
                 raise ValueError("Undo cannot be a compensatable composite step.")
             if spec.risk is not ToolRisk.MODIFY or proposed.risk is not ToolRisk.MODIFY:
                 raise ValueError("Every composite step must be a registered mutation.")
+            if not spec.compensatable:
+                raise ValueError("Every composite step must be compensatable.")
             calls.append(
                 ValidatedPlanCall(
                     call_id=proposed.call_id,
@@ -289,7 +291,7 @@ class CompositePlanExecutor:
     def _prevalidate(self, plan: CompositeValidatedPlan) -> None:
         for call in plan.calls:
             spec = self._registry.get_spec(call.name)
-            if spec.risk is not ToolRisk.MODIFY or call.name == "cad.undo":
+            if spec.risk is not ToolRisk.MODIFY or not spec.compensatable:
                 raise PlanExecutionError("A composite call is not compensatable.")
             self._registry.validate_arguments(call.name, call.arguments)
             if not self._registry.has_handler(call.name):

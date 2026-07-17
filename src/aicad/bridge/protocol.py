@@ -46,6 +46,17 @@ class BridgeResponseStatus(StrEnum):
     EXPIRED = "expired"
 
 
+class BridgeTiming(BaseModel):
+    """GUI-side monotonic timing for one terminal bridge request."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
+
+    queue_wait_ms: float = Field(ge=0)
+    confirmation_wait_ms: float = Field(ge=0)
+    execution_ms: float = Field(ge=0)
+    gui_total_ms: float = Field(ge=0)
+
+
 class BridgeErrorCode(StrEnum):
     INVALID_REQUEST = "invalid_request"
     UNSUPPORTED_VERSION = "unsupported_version"
@@ -168,7 +179,7 @@ _ERROR_PROFILES: dict[BridgeErrorCode, dict[str, Any]] = {
         "suggested_actions": (
             _recovery(
                 ToolRecoveryActionType.OPEN_FREECAD,
-                "Open FreeCAD with the AI CAD workbench active, then retry.",
+                "Open FreeCAD with the TALOS MCP workbench active, then retry.",
             ),
         ),
     },
@@ -293,6 +304,7 @@ class BridgeResponse(BaseModel):
     status: BridgeResponseStatus
     result: JsonValue | None = None
     error: BridgeError | None = None
+    timing: BridgeTiming | None = None
 
     @model_validator(mode="after")
     def validate_payload_for_status(self) -> BridgeResponse:

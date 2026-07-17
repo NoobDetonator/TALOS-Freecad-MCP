@@ -59,4 +59,4 @@ substituir um arquivo. O bundle registra também a própria ação de exportaç�
 ## Cobertura
 
 Testes unitários cobrem contrato, revisões, redaction, retenção e exportação. O
-smoke gráfico valida ações reais de chat, MCP, planos, commits e undos.
+smoke gráfico valida o painel MCP, aprovações, planos, commits e auditoria.

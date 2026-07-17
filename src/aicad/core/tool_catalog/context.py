@@ -3,11 +3,13 @@ from __future__ import annotations
 from aicad.core.tool_catalog.schemas import (
     CAPTURE_RESULT,
     CAPTURES_RESULT,
+    DOCUMENT_SUMMARY_RESULT,
     DEPENDENCY_RESULT,
     DETAIL_RESULT,
     DISTANCE_RESULT,
     EMPTY_OBJECT,
     MEASUREMENT_RESULT,
+    SELECTION_RESULT,
     PARAMETERS_RESULT,
     REFERENCE,
     RESOLUTION_RESULT,
@@ -15,6 +17,7 @@ from aicad.core.tool_catalog.schemas import (
     _object_schema,
     _spec,
 )
+from aicad.core.context import ContextSnapshot
 from aicad.core.tool_registry import ToolRisk, ToolSpec
 
 
@@ -27,6 +30,7 @@ def context_tool_specs() -> tuple[ToolSpec, ...]:
             description="Read the active CAD document and its object tree.",
             risk=ToolRisk.READ,
             input_schema=EMPTY_OBJECT,
+            output_schema=DOCUMENT_SUMMARY_RESULT,
             family="context",
             aliases=(
                 "resumo",
@@ -56,6 +60,7 @@ def context_tool_specs() -> tuple[ToolSpec, ...]:
             description="Read the objects, faces and edges selected by the user.",
             risk=ToolRisk.READ,
             input_schema=EMPTY_OBJECT,
+            output_schema=SELECTION_RESULT,
             family="context",
             aliases=(
                 "seleção",
@@ -106,6 +111,7 @@ def context_tool_specs() -> tuple[ToolSpec, ...]:
                 },
                 "additionalProperties": False,
             },
+            output_schema=ContextSnapshot.model_json_schema(),
             family="context",
             aliases=(
                 "contexto",

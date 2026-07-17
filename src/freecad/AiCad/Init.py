@@ -1,1 +1,1 @@
-"""FreeCAD application-side initialization for AI CAD."""
+"""FreeCAD application-side initialization for TALOS MCP."""

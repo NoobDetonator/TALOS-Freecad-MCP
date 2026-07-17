@@ -122,6 +122,9 @@ def test_read_executes_only_when_owner_thread_processes_queue() -> None:
 
     assert response.status is BridgeResponseStatus.COMPLETED
     assert response.result == {"active": False, "objects": []}
+    assert response.timing is not None
+    assert response.timing.confirmation_wait_ms == 0
+    assert response.timing.execution_ms >= 0
     assert adapter.read_thread_ids == [owner_thread]
 
 
@@ -150,6 +153,9 @@ def test_mutation_requires_confirmation_and_is_idempotent() -> None:
 
     completed = dispatcher.resolve_confirmation(pending.request_id, approved=True)
     assert completed.status is BridgeResponseStatus.COMPLETED
+    assert completed.timing is not None
+    assert completed.timing.confirmation_wait_ms >= 0
+    assert completed.timing.execution_ms >= 0
     assert adapter.created_names == ["BridgeBox"]
     assert adapter.create_thread_ids == [get_ident()]
 

@@ -76,18 +76,46 @@ Quando o interior importa, `cad.capture_section_view` aplica temporariamente um
 corte XY, XZ ou YZ com offset, captura o framebuffer real e restaura integralmente
 o estado visual.
 
+Na fachada MCP, `inspect_cad_model` reúne contexto, validação, medidas e,
+opcionalmente, detalhes, dependências e vistas. Uma segunda leitura de contexto
+compara o token final ao inicial para detectar edição concorrente.
+
 ## Métricas permanentes
 
-- ferramenta esperada presente no conjunto recuperado;
-- tamanho total dos schemas enviados;
-- mutações ausentes em pedidos inseguros;
-- número de leituras antes do plano;
-- sucesso geométrico e validade do documento;
-- tempo até resultado confirmado;
-- rollback correto após falha induzida.
+### Telemetria ponta a ponta
 
-Os corpora em `benchmarks/` cobrem modelagem geral, fundamentos, rolamentos e
-Sketch. O benchmark é offline e não usa chaves nem FreeCAD.
+`get_mcp_performance_snapshot` mantém métricas somente em memória e sem conteúdo
+dos argumentos. O snapshot separa:
+
+- chamadas, falhas, bytes de entrada e saída por ferramenta MCP;
+- estimativa explícita de tokens por bytes UTF-8 divididos por quatro;
+- ida e volta do bridge por operação;
+- fila da GUI, espera de confirmação e execução no FreeCAD;
+- espera completa de workflows entre submissão e estado terminal.
+
+A estimativa não inclui framing do transporte nem substitui o tokenizer do cliente.
+As métricas são descartadas ao encerrar o processo MCP.
+
+### Recuperação e generalização
+
+O benchmark agora informa recall, rank-1, MRR, precisão@K, cobertura de
+esclarecimentos, filtros de rejeição e falsos positivos de mutação. Os corpora
+históricos continuam como regressão curada. O corpus
+`agent-corpus-heldout-v1.json` é separado, versionado e rejeita frases iguais a
+aliases ou exemplos do catálogo.
+
+Baseline holdout congelada em 36 casos, top-4:
+
+- recall direto: 10/20 (50%);
+- rank-1: 42,9%; MRR: 0,440; precisão@K: 17,3%;
+- cobertura de esclarecimentos: 3/8 (37,5%);
+- exposição de mutação em rejeições: 1/8;
+- economia teórica sem cache: 97,4%.
+
+Esses números são intencionalmente mais baixos que os corpora curados e não são
+usados para ajustar os pesos. A economia de schemas assume que o catálogo
+completo seria reenviado; clientes que armazenam `tools/list` em cache têm ganho
+real menor.
 
 ## Direção atual
 

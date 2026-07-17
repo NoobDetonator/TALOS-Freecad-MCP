@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <package format="1">
-  <name>AI CAD Workbench</name>
-  <description>AI-first parametric modeling workbench with MCP integration.</description>
-  <version>0.1.0</version>
-  <maintainer email="">AI CAD Agents</maintainer>
+  <name>TALOS FreeCAD MCP</name>
+  <description>Safe FreeCAD MCP bridge for structured external CAD agents.</description>
+  <version>0.2.0</version>
+  <maintainer email="">TALOS</maintainer>
   <license file="">Private development</license>
-  <url type="repository" branch="main">https://github.com/NoobDetonator/ai-cad-agents</url>
+  <url type="repository" branch="main">https://github.com/NoobDetonator/TALOS-Freecad-MCP</url>
   <content>
     <workbench>
       <classname>AICadWorkbench</classname>

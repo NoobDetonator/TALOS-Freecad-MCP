@@ -9,7 +9,7 @@ NAME = {
     "type": "string",
     "minLength": 1,
     "maxLength": 64,
-    "pattern": "[A-Za-z][A-Za-z0-9_-]*",
+    "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
 }
 REFERENCE = {"type": "string", "minLength": 1, "maxLength": 256}
 POSITIVE = {"type": "number", "exclusiveMinimum": 0}
@@ -38,6 +38,115 @@ OBJECT_RESULT = {
         "valid": {"type": "boolean"},
     },
     "required": ["name", "label", "valid"],
+}
+
+DOCUMENT_SUMMARY_RESULT = {
+    "type": "object",
+    "properties": {
+        "active": {"type": "boolean"},
+        "name": {"type": ["string", "null"]},
+        "label": {"type": "string"},
+        "objects": {"type": "array", "items": {"type": "object"}},
+    },
+    "required": ["active", "name", "objects"],
+}
+SELECTION_RESULT = {
+    "type": "object",
+    "properties": {
+        "selection": {"type": "array", "items": {"type": "object"}},
+    },
+    "required": ["selection"],
+}
+VALIDATION_RESULT = {
+    "type": "object",
+    "properties": {
+        "valid": {"type": "boolean"},
+        "errors": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["valid", "errors"],
+}
+UNDO_RESULT = {
+    "type": "object",
+    "properties": {"undone": {"type": "boolean"}},
+    "required": ["undone"],
+}
+AUDIT_HISTORY_RESULT = {
+    "type": "object",
+    "properties": {
+        "schema_version": {"type": "string"},
+        "session_id": {"type": "string"},
+        "count": {"type": "integer"},
+        "actions": {"type": "array", "items": {"type": "object"}},
+    },
+    "required": ["schema_version", "session_id", "count", "actions"],
+}
+AUDIT_EXPORT_RESULT = {
+    "type": "object",
+    "properties": {
+        "destination": {"type": "string"},
+        "session_id": {"type": "string"},
+        "record_count": {"type": "integer"},
+        "valid": {"type": "boolean"},
+    },
+    "required": ["destination", "session_id", "record_count", "valid"],
+}
+DOCUMENT_LIST_RESULT = {
+    "type": "object",
+    "properties": {
+        "active_document": {"type": ["string", "null"]},
+        "documents": {"type": "array", "items": {"type": "object"}},
+    },
+    "required": ["active_document", "documents"],
+}
+DOCUMENT_RESULT = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string"},
+        "label": {"type": "string"},
+        "active": {"type": "boolean"},
+        "valid": {"type": "boolean"},
+    },
+    "required": ["name", "label", "active", "valid"],
+}
+SAVED_DOCUMENT_RESULT = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string"},
+        "label": {"type": "string"},
+        "destination": {"type": "string"},
+        "size_bytes": {"type": "integer"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "valid": {"type": "boolean"},
+    },
+    "required": [
+        "name",
+        "label",
+        "destination",
+        "size_bytes",
+        "sha256",
+        "valid",
+    ],
+}
+CAD_EXPORT_RESULT = {
+    "type": "object",
+    "properties": {
+        "destination": {"type": "string"},
+        "format": {"type": "string", "enum": ["stl", "step"]},
+        "object": {"type": "string"},
+        "label": {"type": "string"},
+        "size_bytes": {"type": "integer"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "valid": {"type": "boolean"},
+    },
+    "required": [
+        "destination",
+        "format",
+        "object",
+        "label",
+        "size_bytes",
+        "sha256",
+        "valid",
+    ],
 }
 
 DETAIL_RESULT = {
@@ -285,6 +394,7 @@ def _spec(
         risk=risk,
         input_schema=input_schema,
         output_schema=output_schema,
+        compensatable=risk is ToolRisk.MODIFY,
         family=family,
         aliases=aliases,
         tags=tags,

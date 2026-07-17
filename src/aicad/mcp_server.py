@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from dataclasses import asdict
 import json
+from time import perf_counter
 from uuid import UUID, uuid4
 
 from mcp.server.fastmcp import FastMCP
+from typing_extensions import TypedDict
 
 from aicad.bridge.protocol import (
     BridgeError,
@@ -33,13 +35,18 @@ from aicad.core.tool_results import (
     ToolRecoveryActionType,
 )
 from aicad.core.visual_cache import read_capture
+from aicad.mcp_telemetry import (
+    McpPerformanceSnapshot,
+    mcp_telemetry,
+    serialized_size,
+)
 from aicad.orchestration.models import OrchestrationPlan, PlannedToolCall
 from aicad.orchestration.plan_service import CompositeValidatedPlan
 from aicad.orchestration.recipes import default_recipe_catalog
 from aicad.runtime import get_tool_registry
 
 
-mcp = FastMCP("AI CAD Workbench")
+mcp = FastMCP("TALOS FreeCAD MCP")
 tool_registry = get_tool_registry()
 capability_catalog = CapabilityCatalog(tool_registry)
 recipe_catalog = default_recipe_catalog()
@@ -52,13 +59,30 @@ recipe_catalog = default_recipe_catalog()
 BRIDGE_CLIENT_TIMEOUT_SECONDS = GUI_REQUEST_TIMEOUT_SECONDS + 15.0
 
 
+class CadModelInspection(TypedDict, total=False):
+    status: str
+    phase: str
+    bridge_calls: int
+    state_consistent: bool
+    initial_state_token: object
+    final_state_token: object
+    context: object
+    validation: object
+    object_source: str
+    inspected_objects: list[dict[str, object]]
+    visuals: object
+    response: object
+
+
 @mcp.tool()
+@mcp_telemetry.track("health")
 def health() -> dict[str, str]:
-    """Check whether the AI CAD MCP process is available."""
+    """Check whether the TALOS MCP process is available."""
     return {"status": "ok", "phase": "mcp-gui-bridge"}
 
 
 @mcp.tool()
+@mcp_telemetry.track("available_cad_tools")
 def available_cad_tools() -> list[dict[str, object]]:
     """Compatibility endpoint for the complete CAD tool catalog.
 
@@ -70,6 +94,7 @@ def available_cad_tools() -> list[dict[str, object]]:
 
 
 @mcp.tool()
+@mcp_telemetry.track("search_cad_capabilities")
 def search_cad_capabilities(
     query: str = "",
     families: list[str] | None = None,
@@ -95,6 +120,7 @@ def search_cad_capabilities(
 
 
 @mcp.tool()
+@mcp_telemetry.track("describe_cad_capabilities")
 def describe_cad_capabilities(names: list[str]) -> CapabilityDescriptions:
     """Load complete contracts for up to 16 selected CAD capabilities.
 
@@ -108,6 +134,7 @@ def describe_cad_capabilities(names: list[str]) -> CapabilityDescriptions:
 
 
 @mcp.tool()
+@mcp_telemetry.track("available_cad_recipes")
 def available_cad_recipes() -> list[dict[str, object]]:
     """List trusted multi-step CAD recipes compiled into registered tools."""
 
@@ -130,14 +157,16 @@ def _build_bridge_request(
 
 
 def _send_bridge_request(request: BridgeTransportRequest) -> BridgeResponse:
+    started = perf_counter()
+    request_payload = request.model_dump(mode="json")
     try:
         session = default_session_store().load()
-        return TcpBridgeClient(
+        response = TcpBridgeClient(
             session.endpoint,
             timeout=BRIDGE_CLIENT_TIMEOUT_SECONDS,
         ).request(request)
     except BridgeSessionError:
-        return BridgeResponse(
+        response = BridgeResponse(
             request_id=request.request_id,
             status=BridgeResponseStatus.FAILED,
             error=BridgeError(
@@ -154,7 +183,7 @@ def _send_bridge_request(request: BridgeTransportRequest) -> BridgeResponse:
             and tool_registry.get_spec(request.tool_name).risk is ToolRisk.READ
             else None
         )
-        return BridgeResponse(
+        response = BridgeResponse(
             request_id=request.request_id,
             status=BridgeResponseStatus.FAILED,
             error=BridgeError(
@@ -177,8 +206,38 @@ def _send_bridge_request(request: BridgeTransportRequest) -> BridgeResponse:
             ),
         )
 
+    finished = perf_counter()
+    operation = (
+        request.tool_name
+        if isinstance(request, BridgeRequest)
+        else request.operation.value
+    )
+    timing = (
+        response.timing.model_dump(mode="json")
+        if response.timing is not None
+        else None
+    )
+    mcp_telemetry.record_bridge(
+        request_id=str(request.request_id),
+        operation=operation,
+        status=response.status.value,
+        duration_ms=max(0.0, finished - started) * 1000,
+        request_bytes=serialized_size(request_payload),
+        response_bytes=serialized_size(response.model_dump(mode="json")),
+        timing=timing,
+    )
+    return response
+
+
+def _workflow_status(response: BridgeResponse) -> str:
+    if isinstance(response.result, dict):
+        status = response.result.get("status")
+        if isinstance(status, str) and status:
+            return status
+    return response.status.value
 
 @mcp.tool()
+@mcp_telemetry.track("request_cad_tool")
 def request_cad_tool(
     name: str,
     arguments: dict[str, object],
@@ -194,14 +253,20 @@ def request_cad_tool(
     """
 
     request = _build_bridge_request(name, arguments, request_id)
-    return _send_bridge_request(request).model_dump(mode="json")
+    response = _send_bridge_request(request)
+    mcp_telemetry.observe_confirmation(
+        f"request:{request.request_id}",
+        _workflow_status(response),
+    )
+    return response.model_dump(mode="json")
 
 
 @mcp.tool()
+@mcp_telemetry.track("execute_cad_read_tool")
 def execute_cad_read_tool(name: str, arguments: dict[str, object]) -> object:
     """Execute a risk "read" CAD tool immediately, without confirmation.
 
-    Requires the FreeCAD GUI open with the AI CAD workbench active. Start
+    Requires the FreeCAD GUI open with the TALOS MCP workbench active. Start
     with cad.get_context_snapshot to learn the document state, then read
     details and measures before proposing mutations.
     """
@@ -218,6 +283,7 @@ def execute_cad_read_tool(name: str, arguments: dict[str, object]) -> object:
 
 
 @mcp.tool()
+@mcp_telemetry.track("submit_cad_plan")
 def submit_cad_plan(
     intention: str,
     steps: list[str],
@@ -245,7 +311,7 @@ def submit_cad_plan(
         if not isinstance(name, str) or not isinstance(arguments, dict):
             raise ValueError("Each CAD plan call requires a name and arguments.")
         spec = tool_registry.get_spec(name)
-        if spec.risk is not ToolRisk.MODIFY or name == "cad.undo":
+        if spec.risk is not ToolRisk.MODIFY or not spec.compensatable:
             raise ValueError("Every CAD plan call must be a reversible mutation.")
         checked = tool_registry.validate_arguments(name, arguments)
         call_id = raw_call.get("call_id", f"mcp-step-{index}")
@@ -289,10 +355,16 @@ def submit_cad_plan(
         plan=frozen,
         source="mcp",
     )
-    return _send_bridge_request(request).model_dump(mode="json")
+    response = _send_bridge_request(request)
+    mcp_telemetry.observe_confirmation(
+        f"plan:{frozen.plan_id}",
+        _workflow_status(response),
+    )
+    return response.model_dump(mode="json")
 
 
 @mcp.tool()
+@mcp_telemetry.track("get_cad_plan_status")
 def get_cad_plan_status(
     plan_id: str,
     request_id: str | None = None,
@@ -304,10 +376,16 @@ def get_cad_plan_status(
         plan_id=UUID(plan_id),
         source="mcp",
     )
-    return _send_bridge_request(request).model_dump(mode="json")
+    response = _send_bridge_request(request)
+    mcp_telemetry.observe_confirmation(
+        f"plan:{request.plan_id}",
+        _workflow_status(response),
+    )
+    return response.model_dump(mode="json")
 
 
 @mcp.tool()
+@mcp_telemetry.track("cancel_cad_plan")
 def cancel_cad_plan(
     plan_id: str,
     request_id: str | None = None,
@@ -319,10 +397,16 @@ def cancel_cad_plan(
         plan_id=UUID(plan_id),
         source="mcp",
     )
-    return _send_bridge_request(request).model_dump(mode="json")
+    response = _send_bridge_request(request)
+    mcp_telemetry.observe_confirmation(
+        f"plan:{request.plan_id}",
+        _workflow_status(response),
+    )
+    return response.model_dump(mode="json")
 
 
 @mcp.tool()
+@mcp_telemetry.track("submit_cad_recipe")
 def submit_cad_recipe(
     recipe_id: str,
     parameters: dict[str, object],
@@ -355,13 +439,184 @@ def submit_cad_recipe(
         plan=frozen,
         source="mcp",
     )
-    return _send_bridge_request(request).model_dump(mode="json")
+    response = _send_bridge_request(request)
+    mcp_telemetry.observe_confirmation(
+        f"plan:{frozen.plan_id}",
+        _workflow_status(response),
+    )
+    return response.model_dump(mode="json")
+
+
+@mcp.tool()
+@mcp_telemetry.track("inspect_cad_model")
+def inspect_cad_model(
+    objects: list[str] | None = None,
+    max_objects: int = 3,
+    include_details: bool = False,
+    include_dependencies: bool = False,
+    include_visuals: bool = False,
+    views: list[str] | None = None,
+) -> CadModelInspection:
+    """Inspect context, validity and selected model objects in one bounded call.
+
+    Objects default to the current selection, then recent objects, then the
+    first objects in the context page. Measurements are included by default;
+    detailed edge contracts, dependencies and visual resources are opt-in.
+    A final state token reports whether the document stayed stable throughout
+    the multi-read inspection.
+    """
+
+    if isinstance(max_objects, bool) or not isinstance(max_objects, int):
+        raise ValueError("The inspection object limit must be an integer.")
+    if not 1 <= max_objects <= 8:
+        raise ValueError("The inspection object limit must be between 1 and 8.")
+    if objects is not None:
+        if not objects or len(objects) > max_objects:
+            raise ValueError(
+                "Inspection objects must contain between one and max_objects items."
+            )
+        if any(not isinstance(item, str) or not item.strip() for item in objects):
+            raise ValueError("Inspection object references must be non-empty strings.")
+        if len(objects) != len(set(objects)):
+            raise ValueError("Inspection object references must be unique.")
+    if views is not None:
+        if not views or len(views) > 4 or len(views) != len(set(views)):
+            raise ValueError("Inspection views must contain one to four unique views.")
+
+    bridge_calls = 0
+    partial = False
+
+    def read(name: str, arguments: dict[str, object]) -> tuple[bool, object]:
+        nonlocal bridge_calls
+        bridge_calls += 1
+        response = _send_bridge_request(_build_bridge_request(name, arguments))
+        if response.status is BridgeResponseStatus.COMPLETED:
+            return True, response.result
+        return False, response.model_dump(mode="json")
+
+    context_ok, context_payload = read(
+        "cad.get_context_snapshot",
+        {
+            "detail_level": "work",
+            "max_objects": max_objects,
+            "cursor": 0,
+        },
+    )
+    if not context_ok or not isinstance(context_payload, dict):
+        return {
+            "status": "failed",
+            "phase": "context",
+            "bridge_calls": bridge_calls,
+            "response": context_payload,
+        }
+
+    initial_token = context_payload.get("state_token")
+    selected = context_payload.get("selection", [])
+    recent = context_payload.get("recent_objects", [])
+    context_objects = context_payload.get("objects", [])
+    if objects is not None:
+        targets = list(objects)
+        object_source = "explicit"
+    elif isinstance(selected, list) and selected:
+        targets = [
+            item["name"]
+            for item in selected
+            if isinstance(item, dict) and isinstance(item.get("name"), str)
+        ]
+        object_source = "selection"
+    elif isinstance(recent, list) and recent:
+        targets = [item for item in recent if isinstance(item, str)]
+        object_source = "recent"
+    else:
+        targets = [
+            item["name"]
+            for item in context_objects
+            if isinstance(item, dict) and isinstance(item.get("name"), str)
+        ] if isinstance(context_objects, list) else []
+        object_source = "context"
+    targets = list(dict.fromkeys(targets))[:max_objects]
+
+    validation_ok, validation = read("cad.validate_document", {})
+    partial = partial or not validation_ok
+    inspections: list[dict[str, object]] = []
+    for reference in targets:
+        record: dict[str, object] = {"reference": reference}
+        measurement_ok, measurement = read(
+            "cad.measure_object",
+            {"object": reference},
+        )
+        record["measurement"] = measurement
+        partial = partial or not measurement_ok
+        if include_details:
+            details_ok, details = read(
+                "cad.get_object_details",
+                {"object": reference},
+            )
+            record["details"] = details
+            partial = partial or not details_ok
+        if include_dependencies:
+            dependencies_ok, dependencies = read(
+                "cad.get_dependencies",
+                {"object": reference},
+            )
+            record["dependencies"] = dependencies
+            partial = partial or not dependencies_ok
+        inspections.append(record)
+
+    visuals: object | None = None
+    if include_visuals:
+        visuals_ok, visuals = read(
+            "cad.capture_views",
+            {
+                "views": views or ["isometric", "front", "top", "right"],
+                "width": 640,
+                "height": 480,
+                "fit": True,
+            },
+        )
+        partial = partial or not visuals_ok
+
+    final_ok, final_context = read(
+        "cad.get_context_snapshot",
+        {"detail_level": "minimal", "max_objects": 1, "cursor": 0},
+    )
+    final_token = (
+        final_context.get("state_token")
+        if final_ok and isinstance(final_context, dict)
+        else None
+    )
+    state_consistent = initial_token == final_token
+    partial = partial or not final_ok or not state_consistent
+    return {
+        "status": "partial" if partial else "completed",
+        "bridge_calls": bridge_calls,
+        "state_consistent": state_consistent,
+        "initial_state_token": initial_token,
+        "final_state_token": final_token,
+        "context": context_payload,
+        "validation": validation,
+        "object_source": object_source,
+        "inspected_objects": inspections,
+        "visuals": visuals,
+    }
+
+
+@mcp.tool()
+def get_mcp_performance_snapshot() -> McpPerformanceSnapshot:
+    """Read bounded process-local performance metrics without request content.
+
+    Token counts are UTF-8 byte estimates, not client tokenizer measurements.
+    GUI queue, approval and execution timings are reported separately whenever
+    the active FreeCAD bridge supports the optional timing contract.
+    """
+
+    return mcp_telemetry.snapshot()
 
 
 @mcp.resource(
     "aicad://recipes",
     name="cad_recipes",
-    description="Trusted AI CAD recipe catalog and parameter schemas.",
+    description="Trusted TALOS recipe catalog and parameter schemas.",
     mime_type="application/json",
 )
 def cad_recipe_resource() -> str:

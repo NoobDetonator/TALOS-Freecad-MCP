@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  neutral-core:
+    name: Neutral core (Windows, Python 3.11)
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install project and development dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Lint
+        run: python -m ruff check src tests
+
+      - name: Check core types
+        run: >-
+          python -m mypy
+          src/aicad/core/schema_validation.py
+          src/aicad/core/tool_registry.py
+          src/aicad/core/transactions.py
+
+      - name: Test neutral core with coverage gate
+        run: >-
+          python -m pytest
+          -p no:cacheprovider
+          --cov=aicad.core
+          --cov=aicad.bridge
+          --cov=aicad.audit
+          --cov=aicad.orchestration
+          --cov-fail-under=80

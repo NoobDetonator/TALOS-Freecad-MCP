@@ -20,8 +20,27 @@ if (-not (Test-Path -LiteralPath $VenvPython)) {
 
 Push-Location $ProjectRoot
 try {
+& $VenvPython -m ruff check src tests
+if ($LASTEXITCODE -ne 0) {
+    throw "A verificacao estatica do Ruff falhou."
+}
+& $VenvPython -m mypy `
+    src\aicad\core\schema_validation.py `
+    src\aicad\core\tool_registry.py `
+    src\aicad\core\transactions.py
+if ($LASTEXITCODE -ne 0) {
+    throw "A verificacao de tipos do nucleo falhou."
+}
+
     New-Item -ItemType Directory -Force -Path $PytestTemp | Out-Null
-    & $VenvPython -m pytest --basetemp $PytestTemp -p no:cacheprovider
+    & $VenvPython -m pytest `
+        --basetemp $PytestTemp `
+        -p no:cacheprovider `
+        --cov=aicad.core `
+        --cov=aicad.bridge `
+        --cov=aicad.audit `
+        --cov=aicad.orchestration `
+        --cov-fail-under=80
     if ($LASTEXITCODE -ne 0) {
         throw "Os testes unitarios falharam."
     }
@@ -134,7 +153,7 @@ try {
             '-u', ('"' + $UserConfig + '"'),
             '-s', ('"' + $SystemConfig + '"'),
             '--log-file', ('"' + $guiLog + '"'),
-            ('"' + (Join-Path $ProjectRoot "tests\freecad_gui_smoke.py") + '"')
+            ('"' + (Join-Path $ProjectRoot "tests\freecad_mcp_panel_smoke.py") + '"')
         )
         $startedAt = Get-Date
         $process = Start-Process -FilePath $FreeCadExe -ArgumentList $arguments -PassThru
