@@ -139,11 +139,16 @@ if ($LASTEXITCODE -ne 0) {
         if ($LASTEXITCODE -ne 0 -or $m7Text -notmatch "FREECAD_M7_SMOKE_OK") {
             throw "O teste de documentos e modelagem M7 do FreeCAD falhou."
         }
+        # O PartDesign::Hole escreve avisos benignos no stderr; com
+        # ErrorActionPreference Stop o 2>&1 os promoveria a excecao fatal.
+        $PreviousErrorPreference = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
         $partDesignOutput = & $FreeCadCmd -u $UserConfig -s $SystemConfig `
             -M $FreeCadModule `
             -P $VenvSitePackages `
             -P (Join-Path $ProjectRoot "src") `
             (Join-Path $ProjectRoot "tests\freecad_partdesign_smoke.py") 2>&1
+        $ErrorActionPreference = $PreviousErrorPreference
         $partDesignOutput | ForEach-Object { Write-Host $_ }
         $partDesignText = $partDesignOutput -join "`n"
         if (

@@ -117,8 +117,10 @@ O coração do plano. Estado:
   semanticamente — encadeia features sobre geometria existente;
 - ✅ `cad.add_fillet` e `cad.add_chamfer`: dressups `PartDesign::` com
   arestas semânticas e volumes verificados no smoke;
-- pendente: `$ref` entre passos de plano composto e Hole com
-  counterbore/countersink (próximo incremento);
+- ✅ `cad.add_hole`: furos paramétricos em todos os círculos do sketch, com
+  counterbore/countersink, passante e reedição por diâmetro — uma linha no
+  registro de reflexão governada;
+- pendente: `$ref` entre passos de plano composto (próximo incremento);
 - nota empírica: `Face.normalAt` já devolve a normal orientada para fora;
   não aplicar correção por `Orientation`.
 

@@ -225,6 +225,54 @@ PARTDESIGN_FEATURES: tuple[FeatureDefinition, ...] = (
         canonical_order=523,
     ),
     FeatureDefinition(
+        tool_name="cad.add_hole",
+        freecad_type="PartDesign::Hole",
+        title="Furo paramétrico",
+        description=(
+            "Drill parametric holes at every circle of a Body sketch as one "
+            "PartDesign::Hole. The hole diameter comes from this tool, not "
+            "from the sketch circles. Supports counterbore and countersink "
+            "via cut_type with cut_diameter and cut_depth. Like pocket, the "
+            "drill runs OPPOSITE the sketch normal: set reversed=true from a "
+            "base-plane sketch with material above it. Example: {\"sketch\": "
+            "\"HoleCenters\", \"diameter\": 5, \"through_all\": true, "
+            "\"reversed\": true, \"cut_type\": \"Counterbore\", "
+            "\"cut_diameter\": 10, \"cut_depth\": 3}."
+        ),
+        profile="sketch",
+        default_name="AIHole",
+        properties=(
+            FeatureProperty("diameter", "Diameter", _MM_POSITIVE, required=True),
+            FeatureProperty("depth", "Depth", _MM_POSITIVE),
+            FeatureProperty("reversed", "Reversed", _BOOL),
+            FeatureProperty(
+                "cut_type",
+                "HoleCutType",
+                {
+                    "type": "string",
+                    "enum": ["None", "Counterbore", "Countersink"],
+                },
+            ),
+            FeatureProperty("cut_diameter", "HoleCutDiameter", _MM_POSITIVE),
+            FeatureProperty("cut_depth", "HoleCutDepth", _MM_POSITIVE),
+        ),
+        extra_arguments={"through_all": dict(_BOOL)},
+        aliases=(
+            "furo paramétrico",
+            "furar",
+            "hole",
+            "counterbore",
+            "countersink",
+            "furo escareado",
+        ),
+        tags=("partdesign", "body", "furo", "broca", "drill", "escareado"),
+        examples=(
+            "Fure 5 mm passante nos centros do sketch.",
+            "Drill counterbored holes of 5 mm with 10 mm counterbore.",
+        ),
+        canonical_order=527,
+    ),
+    FeatureDefinition(
         tool_name="cad.add_linear_pattern",
         freecad_type="PartDesign::LinearPattern",
         title="Padrão linear paramétrico",

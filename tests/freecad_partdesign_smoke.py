@@ -288,6 +288,63 @@ try:
 except ValueError:
     pass
 
+# --- Parametric counterbored holes ----------------------------------------
+
+modify("cad.create_body", {"name": "HoleBody"})
+modify(
+    "cad.create_body_sketch",
+    {"body": "HoleBody", "plane": "xy", "name": "HoleBase"},
+)
+modify(
+    "cad.add_sketch_rectangle",
+    {"sketch": "HoleBase", "x": -20, "y": -10, "width": 40, "height": 20},
+)
+hole_pad = modify(
+    "cad.add_pad",
+    {"body": "HoleBody", "sketch": "HoleBase", "length": 8, "name": "HolePad"},
+)
+assert close(40 * 20 * 8, hole_pad["volume_mm3"]), hole_pad["volume_mm3"]
+
+modify(
+    "cad.create_body_sketch",
+    {"body": "HoleBody", "plane": "xy", "name": "HoleCenters"},
+)
+for center_x in (-10, 10):
+    modify(
+        "cad.add_sketch_circle",
+        {"sketch": "HoleCenters", "center_x": center_x, "center_y": 0, "radius": 1},
+    )
+holes = modify(
+    "cad.add_hole",
+    {
+        "body": "HoleBody",
+        "sketch": "HoleCenters",
+        "diameter": 5,
+        "through_all": True,
+        "reversed": True,
+        "cut_type": "Counterbore",
+        "cut_diameter": 10,
+        "cut_depth": 3,
+    },
+)
+drill = 2 * math.pi * 2.5 * 2.5 * 8
+counterbore = 2 * math.pi * (5 * 5 - 2.5 * 2.5) * 3
+assert close(
+    40 * 20 * 8 - drill - counterbore, holes["volume_mm3"], 0.01
+), holes["volume_mm3"]
+
+resized = modify(
+    "cad.edit_feature",
+    {"feature": "AIHole", "properties": {"diameter": 6}},
+)
+resized_drill = 2 * math.pi * 3 * 3 * 8
+resized_counterbore = 2 * math.pi * (5 * 5 - 3 * 3) * 3
+assert close(
+    40 * 20 * 8 - resized_drill - resized_counterbore,
+    resized["volume_mm3"],
+    0.01,
+), resized["volume_mm3"]
+
 # --- Guard rails ----------------------------------------------------------
 
 try:

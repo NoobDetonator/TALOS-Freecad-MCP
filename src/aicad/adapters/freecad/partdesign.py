@@ -600,8 +600,12 @@ class PartDesignMixin:
                         prop.freecad_property,
                         arguments[prop.argument],
                     )
-            if arguments.get("through_all") and hasattr(feature, "Type"):
-                feature.Type = "ThroughAll"
+            if arguments.get("through_all"):
+                # Pocket exposes the depth mode as Type; Hole as DepthType.
+                depth_property = (
+                    "DepthType" if hasattr(feature, "DepthType") else "Type"
+                )
+                setattr(feature, depth_property, "ThroughAll")
             self._apply_axis_argument(
                 definition, feature, body, profile_sketch, arguments
             )
