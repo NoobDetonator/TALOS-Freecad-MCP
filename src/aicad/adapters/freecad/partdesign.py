@@ -7,6 +7,13 @@ from aicad.core.partdesign_registry import (
     feature_by_tool,
     feature_by_type,
 )
+from aicad.core.semantic_refs import (
+    EdgeSelector,
+    FaceSelector,
+    axis_vector,
+    parse_edge_selector,
+    parse_face_selector,
+)
 
 
 _ORIGIN_AXIS_ROLES = {"x": "X_Axis", "y": "Y_Axis", "z": "Z_Axis"}
@@ -271,6 +278,241 @@ class PartDesignMixin:
             "geometry_count": int(target.GeometryCount),
             "constraint_count": len(target.Constraints),
         }
+
+    # --- semantic reference resolution ---------------------------------------
+
+    @classmethod
+    def _tip_feature(cls, body: Any) -> Any:
+        tip = getattr(body, "Tip", None)
+        if tip is None:
+            raise ValueError("The body has no features to reference yet.")
+        return tip
+
+    @staticmethod
+    def _face_normal(face: Any) -> Any:
+        # Face.normalAt already returns the outward-oriented normal: on a box,
+        # the bottom face reports -Z even though its Orientation is Reversed.
+        return face.normalAt(0, 0)
+
+    @classmethod
+    def _resolve_face(
+        cls, body: Any, selector: FaceSelector
+    ) -> tuple[Any, str, Any]:
+        """Resolve one face selector on the body tip shape or fail as stale."""
+
+        tip = cls._tip_feature(body)
+        shape = cls._shape_or_error(tip)
+        faces = list(shape.Faces)
+        if selector.kind == "named_face":
+            index = int(str(selector.name)[4:]) - 1
+            if not 0 <= index < len(faces):
+                raise ValueError(
+                    f"The face reference {selector.name} is stale: the body "
+                    f"has {len(faces)} faces."
+                )
+            return tip, str(selector.name), faces[index]
+
+        candidates: list[tuple[float, int, Any]] = []
+        for position, face in enumerate(faces):
+            if type(face.Surface).__name__ != "Plane":
+                continue
+            if selector.normal is not None:
+                wanted = axis_vector(selector.normal)
+                normal = cls._face_normal(face)
+                alignment = (
+                    normal.x * wanted[0]
+                    + normal.y * wanted[1]
+                    + normal.z * wanted[2]
+                )
+                if alignment < 0.999:
+                    continue
+            candidates.append((float(face.Area), position, face))
+        if not candidates:
+            raise ValueError(
+                "No planar face matches the selector; the reference is stale "
+                "or the direction is wrong."
+            )
+        candidates.sort(key=lambda item: (-item[0], item[1]))
+        if (
+            len(candidates) > 1
+            and candidates[1][0] > candidates[0][0] * (1 - 1e-6)
+        ):
+            raise ValueError(
+                "The face selector is ambiguous: multiple planar faces share "
+                "the largest area. Narrow it with a normal direction."
+            )
+        area, position, face = candidates[0]
+        return tip, f"Face{position + 1}", face
+
+    @classmethod
+    def _resolve_edges(
+        cls, body: Any, selector: EdgeSelector
+    ) -> tuple[Any, list[str]]:
+        """Resolve one edge selector to element names on the body tip shape."""
+
+        tip = cls._tip_feature(body)
+        shape = cls._shape_or_error(tip)
+        edges = list(shape.Edges)
+        names: list[str] = []
+        if selector.kind == "named_edges":
+            for name in selector.names:
+                index = int(name[4:]) - 1
+                if not 0 <= index < len(edges):
+                    raise ValueError(
+                        f"The edge reference {name} is stale: the body has "
+                        f"{len(edges)} edges."
+                    )
+            names = list(selector.names)
+        elif selector.kind == "circular_edges":
+            for position, edge in enumerate(edges):
+                curve = getattr(edge, "Curve", None)
+                if type(curve).__name__ != "Circle" or not edge.Closed:
+                    continue
+                diameter = 2.0 * float(curve.Radius)
+                if abs(diameter - float(selector.diameter)) <= selector.tolerance:
+                    names.append(f"Edge{position + 1}")
+        elif selector.kind == "face_boundary":
+            _, _, face = cls._resolve_face(body, selector.face)
+            for position, edge in enumerate(edges):
+                if any(edge.isSame(candidate) for candidate in face.Edges):
+                    names.append(f"Edge{position + 1}")
+        else:
+            raise ValueError("Unsupported edge selector kind.")
+        if not names:
+            raise ValueError(
+                "No edge matches the selector; the reference is stale or the "
+                "parameters do not describe this body."
+            )
+        return tip, names
+
+    def resolve_body_reference(
+        self,
+        body: str | None = None,
+        face: dict[str, Any] | None = None,
+        edges: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Preview what the semantic selectors resolve to, without mutating."""
+
+        if face is None and edges is None:
+            raise ValueError("Provide a face or an edges selector to resolve.")
+        target_body = self._body_or_error(body)
+        result: dict[str, Any] = {"body": target_body.Name, "valid": True}
+        if face is not None:
+            tip, face_name, resolved = self._resolve_face(
+                target_body, parse_face_selector(face)
+            )
+            center = resolved.CenterOfMass
+            normal = self._face_normal(resolved)
+            result["face"] = {
+                "feature": tip.Name,
+                "name": face_name,
+                "area_mm2": float(resolved.Area),
+                "center_mm": [float(center.x), float(center.y), float(center.z)],
+                "normal": [float(normal.x), float(normal.y), float(normal.z)],
+            }
+        if edges is not None:
+            tip, names = self._resolve_edges(
+                target_body, parse_edge_selector(edges)
+            )
+            result["edges"] = {
+                "feature": tip.Name,
+                "names": names,
+                "count": len(names),
+            }
+        return result
+
+    # --- face sketch and dressups --------------------------------------------
+
+    def create_face_sketch(
+        self,
+        face: dict[str, Any],
+        body: str | None = None,
+        name: str = "AISketch",
+    ) -> dict[str, Any]:
+        target_body = self._body_or_error(body)
+        document = self._active_document()
+        checked_name = self._ensure_new_name(document, name)
+        tip, face_name, _ = self._resolve_face(
+            target_body, parse_face_selector(face)
+        )
+
+        def create(document: Any) -> Any:
+            sketch = target_body.newObject(
+                "Sketcher::SketchObject", checked_name
+            )
+            support_property = (
+                "AttachmentSupport"
+                if hasattr(sketch, "AttachmentSupport")
+                else "Support"
+            )
+            setattr(sketch, support_property, [(tip, face_name)])
+            sketch.MapMode = "FlatFace"
+            return sketch
+
+        sketch = self._run_transaction(
+            f"create face sketch {checked_name}", create, allow_null_shape=True
+        )
+        return {
+            "name": sketch.Name,
+            "label": sketch.Label,
+            "body": target_body.Name,
+            "face": face_name,
+            "feature": tip.Name,
+            "valid": True,
+        }
+
+    def _add_dressup(
+        self,
+        freecad_type: str,
+        size_property: str,
+        size_value: float,
+        edges: dict[str, Any],
+        body: str | None,
+        name: str,
+    ) -> dict[str, Any]:
+        checked_size = self._positive_values(size_value)[0]
+        target_body = self._body_or_error(body)
+        document = self._active_document()
+        checked_name = self._ensure_new_name(document, name)
+        tip, edge_names = self._resolve_edges(
+            target_body, parse_edge_selector(edges)
+        )
+
+        def create(document: Any) -> Any:
+            feature = target_body.newObject(freecad_type, checked_name)
+            feature.Base = (tip, edge_names)
+            setattr(feature, size_property, checked_size)
+            target_body.Tip = feature
+            return feature
+
+        feature = self._run_transaction(
+            f"add {freecad_type} {checked_name}", create
+        )
+        result = self._feature_result(target_body, feature)
+        result["edges"] = edge_names
+        return result
+
+    def add_fillet_feature(
+        self,
+        edges: dict[str, Any],
+        radius: float,
+        body: str | None = None,
+        name: str = "AIFillet",
+    ) -> dict[str, Any]:
+        return self._add_dressup(
+            "PartDesign::Fillet", "Radius", radius, edges, body, name
+        )
+
+    def add_chamfer_feature(
+        self,
+        edges: dict[str, Any],
+        size: float,
+        body: str | None = None,
+        name: str = "AIChamfer",
+    ) -> dict[str, Any]:
+        return self._add_dressup(
+            "PartDesign::Chamfer", "Size", size, edges, body, name
+        )
 
     # --- governed feature reflection ----------------------------------------
 

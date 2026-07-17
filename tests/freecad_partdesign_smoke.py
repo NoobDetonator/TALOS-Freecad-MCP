@@ -191,6 +191,103 @@ revolution = modify(
 ring_expected = 2 * math.pi * 12 * (4 * 6)
 assert close(ring_expected, revolution["volume_mm3"]), revolution["volume_mm3"]
 
+# --- Semantic references: face sketch, chamfer and fillet (P2) ------------
+
+modify("cad.create_body", {"name": "DressupBody"})
+modify(
+    "cad.create_body_sketch",
+    {"body": "DressupBody", "plane": "xy", "name": "DressupBase"},
+)
+modify(
+    "cad.add_sketch_rectangle",
+    {"sketch": "DressupBase", "x": -15, "y": -10, "width": 30, "height": 20},
+)
+dressup_pad = modify(
+    "cad.add_pad",
+    {"body": "DressupBody", "sketch": "DressupBase", "length": 10, "name": "DressupPad"},
+)
+assert close(30 * 20 * 10, dressup_pad["volume_mm3"]), dressup_pad["volume_mm3"]
+
+top = read(
+    "cad.resolve_body_reference",
+    {
+        "body": "DressupBody",
+        "face": {"kind": "largest_planar_face", "normal": "+z"},
+    },
+)
+assert close(30 * 20, top["face"]["area_mm2"]), top["face"]
+assert close(10, top["face"]["center_mm"][2], 0.001), top["face"]
+assert top["face"]["normal"][2] > 0.99, top["face"]
+
+chamfer = modify(
+    "cad.add_chamfer",
+    {
+        "body": "DressupBody",
+        "edges": {
+            "kind": "face_boundary",
+            "face": {"kind": "largest_planar_face", "normal": "+z"},
+        },
+        "size": 1,
+    },
+)
+assert len(chamfer["edges"]) == 4, chamfer["edges"]
+assert close(6000 - 2 * (30 + 20) * 0.5, chamfer["volume_mm3"], 0.01), chamfer[
+    "volume_mm3"
+]
+
+modify(
+    "cad.create_face_sketch",
+    {
+        "body": "DressupBody",
+        "face": {"kind": "largest_planar_face", "normal": "+z"},
+        "name": "BossSketch",
+    },
+)
+modify(
+    "cad.add_sketch_circle",
+    {"sketch": "BossSketch", "center_x": 0, "center_y": 0, "radius": 4},
+)
+boss = modify(
+    "cad.add_pad",
+    {"body": "DressupBody", "sketch": "BossSketch", "length": 5, "name": "Boss"},
+)
+assert close(
+    chamfer["volume_mm3"] + math.pi * 16 * 5, boss["volume_mm3"], 0.005
+), boss["volume_mm3"]
+
+ring_edges = read(
+    "cad.resolve_body_reference",
+    {
+        "body": "RingBody",
+        "edges": {"kind": "circular_edges", "diameter": 28},
+    },
+)
+assert ring_edges["edges"]["count"] == 2, ring_edges["edges"]
+
+fillet = modify(
+    "cad.add_fillet",
+    {
+        "body": "RingBody",
+        "edges": {"kind": "circular_edges", "diameter": 28},
+        "radius": 1,
+    },
+)
+assert ring_expected - 60 < fillet["volume_mm3"] < ring_expected - 20, fillet[
+    "volume_mm3"
+]
+
+try:
+    read(
+        "cad.resolve_body_reference",
+        {
+            "body": "DressupBody",
+            "edges": {"kind": "circular_edges", "diameter": 99},
+        },
+    )
+    raise AssertionError("A stale semantic reference must be rejected.")
+except ValueError:
+    pass
+
 # --- Guard rails ----------------------------------------------------------
 
 try:

@@ -4,6 +4,10 @@ from aicad.core.partdesign_registry import (
     PARTDESIGN_FEATURES,
     editable_property_union,
 )
+from aicad.core.semantic_refs import (
+    EDGE_SELECTOR_SCHEMA,
+    FACE_SELECTOR_SCHEMA,
+)
 from aicad.core.tool_catalog.schemas import (
     NAME,
     OBJECT_RESULT,
@@ -251,6 +255,166 @@ def partdesign_tool_specs() -> tuple[ToolSpec, ...]:
                 "Change the pocket depth to 3 mm.",
             ),
             order=514,
+            output_schema=FEATURE_RESULT,
+        ),
+        _spec(
+            "cad.resolve_body_reference",
+            (
+                "Preview what a semantic face or edge selector resolves to on "
+                "the current Body tip, without mutating anything. Use before "
+                "cad.create_face_sketch, cad.add_fillet or cad.add_chamfer to "
+                "confirm the target. A selector that matches nothing fails as "
+                "stale instead of guessing. Example: {\"face\": {\"kind\": "
+                "\"largest_planar_face\", \"normal\": \"+z\"}}."
+            ),
+            ToolRisk.READ,
+            {
+                "type": "object",
+                "properties": {
+                    "body": REFERENCE,
+                    "face": FACE_SELECTOR_SCHEMA,
+                    "edges": EDGE_SELECTOR_SCHEMA,
+                },
+                "anyOf": [{"required": ["face"]}, {"required": ["edges"]}],
+                "additionalProperties": False,
+            },
+            family="partdesign",
+            aliases=(
+                "resolver referência",
+                "qual face",
+                "resolve face",
+                "preview selector",
+            ),
+            tags=("partdesign", "referência", "reference", "topologia"),
+            examples=(
+                "Qual é a maior face plana superior do corpo?",
+                "Which edges match diameter 6 on this body?",
+            ),
+            order=515,
+            output_schema={
+                "type": "object",
+                "properties": {
+                    "body": {"type": "string"},
+                    "face": {"type": "object"},
+                    "edges": {"type": "object"},
+                    "valid": {"type": "boolean"},
+                },
+                "required": ["body", "valid"],
+            },
+        ),
+        _spec(
+            "cad.create_face_sketch",
+            (
+                "Create an empty sketch attached to a SOLID FACE of the Body "
+                "resolved by a semantic selector — the professional way to "
+                "chain features on existing geometry. The sketch stays glued "
+                "to that face when dimensions change. Example: {\"face\": "
+                "{\"kind\": \"largest_planar_face\", \"normal\": \"+z\"}, "
+                "\"name\": \"BossSketch\"}."
+            ),
+            ToolRisk.MODIFY,
+            {
+                "type": "object",
+                "properties": {
+                    "face": FACE_SELECTOR_SCHEMA,
+                    "body": REFERENCE,
+                    "name": NAME,
+                },
+                "required": ["face"],
+                "additionalProperties": False,
+            },
+            family="partdesign",
+            aliases=(
+                "sketch na face",
+                "esboço na face",
+                "sketch on face",
+                "desenhar sobre a face",
+            ),
+            tags=("partdesign", "face", "anexar", "attach", "topo"),
+            examples=(
+                "Crie um sketch na face superior do corpo.",
+                "Sketch on the largest top face to add a boss.",
+            ),
+            order=516,
+            output_schema=OBJECT_RESULT,
+        ),
+        _spec(
+            "cad.add_fillet",
+            (
+                "Round Body edges selected semantically (circular_edges by "
+                "diameter, face_boundary or named_edges) with a parametric "
+                "PartDesign::Fillet. Keep the radius well under the smallest "
+                "neighbouring dimension. Example: {\"edges\": {\"kind\": "
+                "\"circular_edges\", \"diameter\": 8}, \"radius\": 1.5}."
+            ),
+            ToolRisk.MODIFY,
+            {
+                "type": "object",
+                "properties": {
+                    "edges": EDGE_SELECTOR_SCHEMA,
+                    "radius": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 1000,
+                    },
+                    "body": REFERENCE,
+                    "name": NAME,
+                },
+                "required": ["edges", "radius"],
+                "additionalProperties": False,
+            },
+            family="partdesign",
+            aliases=(
+                "filete paramétrico",
+                "arredondar arestas do corpo",
+                "fillet body edges",
+            ),
+            tags=("partdesign", "filete", "fillet", "raio", "arredondar"),
+            examples=(
+                "Arredonde as bordas do furo de 8 mm com raio 1.5.",
+                "Fillet the top face boundary with radius 2.",
+            ),
+            order=517,
+            output_schema=FEATURE_RESULT,
+        ),
+        _spec(
+            "cad.add_chamfer",
+            (
+                "Chamfer Body edges selected semantically (circular_edges by "
+                "diameter, face_boundary or named_edges) with a parametric "
+                "PartDesign::Chamfer at 45 degrees by size millimeters. "
+                "Example: {\"edges\": {\"kind\": \"face_boundary\", \"face\": "
+                "{\"kind\": \"largest_planar_face\", \"normal\": \"+z\"}}, "
+                "\"size\": 1}."
+            ),
+            ToolRisk.MODIFY,
+            {
+                "type": "object",
+                "properties": {
+                    "edges": EDGE_SELECTOR_SCHEMA,
+                    "size": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 1000,
+                    },
+                    "body": REFERENCE,
+                    "name": NAME,
+                },
+                "required": ["edges", "size"],
+                "additionalProperties": False,
+            },
+            family="partdesign",
+            aliases=(
+                "chanfro paramétrico",
+                "quebrar arestas do corpo",
+                "chamfer body edges",
+            ),
+            tags=("partdesign", "chanfro", "chamfer", "quebra", "bisel"),
+            examples=(
+                "Chanfre o contorno da face superior com 1 mm.",
+                "Chamfer the hole edges of diameter 8 by 0.5.",
+            ),
+            order=518,
             output_schema=FEATURE_RESULT,
         ),
     ) + _feature_tool_specs()

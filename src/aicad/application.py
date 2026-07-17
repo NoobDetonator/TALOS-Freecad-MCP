@@ -536,6 +536,10 @@ def build_cad_tool_registry(adapter: CadAdapter) -> ToolRegistry:
         "cad.set_sketch_datum": "set_sketch_datum",
         "cad.get_sketch_status": "get_sketch_status",
         "cad.edit_feature": "edit_feature",
+        "cad.resolve_body_reference": "resolve_body_reference",
+        "cad.create_face_sketch": "create_face_sketch",
+        "cad.add_fillet": "add_fillet_feature",
+        "cad.add_chamfer": "add_chamfer_feature",
     }
     for tool_name, method_name in bindings.items():
         bind(tool_name, method_name)

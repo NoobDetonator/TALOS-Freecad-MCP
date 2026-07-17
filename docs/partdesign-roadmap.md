@@ -104,15 +104,23 @@ O coração do plano. Estado:
 - pendente (vai para P2, exige referências de aresta/face): Hole com
   counterbore/countersink, Fillet, Chamfer e Draft como dressups.
 
-### P2 — Referências semânticas estáveis (mínimo do antigo E1.3)
+### P2 — Referências semânticas estáveis (mínimo do antigo E1.3) ✅ (núcleo entregue)
 
-- Seletores de face/aresta por papel: `maior_face_planar normal +Z`,
-  `aresta_circular diâmetro≈6`, `face_de(feature)` — resolvidos na execução,
-  revalidados por fingerprint; referência obsoleta falha com erro
-  estruturado, nunca escolhe outra topologia em silêncio;
-- `$ref` entre passos de plano composto (saída de um passo alimenta o
-  argumento do próximo sem adivinhar nomes);
-- o motor de naming estável do FreeCAD 1.x é pré-requisito verificado.
+- ✅ seletores neutros em `core/semantic_refs.py`: face por papel
+  (`largest_planar_face` com filtro de normal, `named_face`) e arestas
+  (`circular_edges` por diâmetro, `face_boundary`, `named_edges`) —
+  resolvidos na execução sobre o tip do Body; referência obsoleta ou ambígua
+  falha com erro estruturado, nunca escolhe outra topologia em silêncio;
+- ✅ `cad.resolve_body_reference` (leitura): preview da resolução antes de
+  mutar;
+- ✅ `cad.create_face_sketch`: sketch anexado a face sólida resolvida
+  semanticamente — encadeia features sobre geometria existente;
+- ✅ `cad.add_fillet` e `cad.add_chamfer`: dressups `PartDesign::` com
+  arestas semânticas e volumes verificados no smoke;
+- pendente: `$ref` entre passos de plano composto e Hole com
+  counterbore/countersink (próximo incremento);
+- nota empírica: `Face.normalAt` já devolve a normal orientada para fora;
+  não aplicar correção por `Orientation`.
 
 ### P3 — Parâmetros mestres
 
