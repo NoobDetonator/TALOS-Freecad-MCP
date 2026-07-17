@@ -78,6 +78,18 @@ def test_registry_validates_nested_draft_2020_12_schemas() -> None:
         )
 
 
+def test_enum_errors_echo_the_allowed_values() -> None:
+    registry = build_default_registry()
+
+    with pytest.raises(
+        ToolInputError,
+        match=r"must be one of the allowed values: minimal, work",
+    ):
+        registry.validate_arguments(
+            "cad.get_context_snapshot", {"detail_level": "summary"}
+        )
+
+
 def test_registry_rejects_invalid_published_schemas_at_registration() -> None:
     registry = ToolRegistry()
 

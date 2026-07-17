@@ -52,7 +52,14 @@ def _message(error: ValidationError, tool_name: str) -> str:
         article = "an" if str(expected) in {"array", "object", "integer"} else "a"
         return f"{subject} must be {article} {expected}."
     if validator == "enum":
-        return f"{subject} must be one of the allowed values."
+        # Echoing the values lets an agent correct the argument on the first
+        # retry instead of re-reading the schema; enums here are small, but a
+        # bound keeps a future large enum from flooding the message.
+        allowed_values = list(error.validator_value)
+        listed = ", ".join(str(item) for item in allowed_values[:12])
+        if len(allowed_values) > 12:
+            listed += ", …"
+        return f"{subject} must be one of the allowed values: {listed}."
     if validator == "uniqueItems":
         return f"{subject} items must be unique."
     if validator == "minimum":
