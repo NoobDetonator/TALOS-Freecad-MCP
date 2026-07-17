@@ -196,6 +196,7 @@ class FreeCadAdapterBase:
         operation: Callable[[Any], Any],
         *,
         recent_names: tuple[str, ...] | None = None,
+        allow_null_shape: bool = False,
     ) -> Any:
         document = self._active_document()
         self._ensure_undo(document)
@@ -205,7 +206,9 @@ class FreeCadAdapterBase:
             item = operation(document)
             document.recompute()
             shape = getattr(item, "Shape", None)
-            if shape is not None and (shape.isNull() or not shape.isValid()):
+            if shape is not None and not (allow_null_shape and shape.isNull()) and (
+                shape.isNull() or not shape.isValid()
+            ):
                 raise RuntimeError("FreeCAD produced an invalid result shape.")
             validation = self._validate_document(document)
             if not validation["valid"]:

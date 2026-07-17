@@ -227,8 +227,10 @@ def modeling_tool_specs() -> tuple[ToolSpec, ...]:
         ),
         _spec(
             "cad.pad_sketch",
-            "Extrude one closed sketch along +Z by length millimeters into a "
-            "validated solid linked to the sketch.",
+            "LEGACY: extrude one free-standing closed sketch along +Z into a "
+            "STATIC solid that ignores later sketch edits and inner holes. "
+            "For parametric work prefer the Part Design flow: "
+            "cad.create_body, cad.create_body_sketch and cad.add_pad.",
             ToolRisk.MODIFY,
             _object_schema({"sketch": REFERENCE, "length": POSITIVE, "name": NAME}, ("sketch", "length")),
             family="feature",
@@ -240,10 +242,11 @@ def modeling_tool_specs() -> tuple[ToolSpec, ...]:
         ),
         _spec(
             "cad.revolve_sketch",
-            "Revolve one closed sketch around the global X or Y axis through "
-            "the origin by angle degrees (0 to 360). The sketch must lie "
-            "entirely on one side of the axis; position it first with "
-            "cad.transform_object. Good for pulleys, shafts and turned caps.",
+            "LEGACY: revolve one free-standing closed sketch around the "
+            "global X or Y axis into a STATIC solid that ignores later "
+            "sketch edits. The sketch must lie entirely on one side of the "
+            "axis. For parametric work prefer cad.add_revolution inside a "
+            "Body.",
             ToolRisk.MODIFY,
             _object_schema(
                 {

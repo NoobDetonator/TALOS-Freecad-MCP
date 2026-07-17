@@ -35,7 +35,7 @@ adaptadores, flanges, placas, eixos, polias, engrenagens e peças furadas.
 
 - schemas em vez de scripts gerados;
 - transações e rollback verificável;
-- seleção eficiente entre 92 ferramentas;
+- seleção eficiente entre 104 ferramentas;
 - contexto, medidas e imagens para autocorreção;
 - auditoria local com redaction;
 - mesmas capacidades no painel e no MCP.

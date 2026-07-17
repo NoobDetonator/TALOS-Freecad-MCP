@@ -139,6 +139,19 @@ if ($LASTEXITCODE -ne 0) {
         if ($LASTEXITCODE -ne 0 -or $m7Text -notmatch "FREECAD_M7_SMOKE_OK") {
             throw "O teste de documentos e modelagem M7 do FreeCAD falhou."
         }
+        $partDesignOutput = & $FreeCadCmd -u $UserConfig -s $SystemConfig `
+            -M $FreeCadModule `
+            -P $VenvSitePackages `
+            -P (Join-Path $ProjectRoot "src") `
+            (Join-Path $ProjectRoot "tests\freecad_partdesign_smoke.py") 2>&1
+        $partDesignOutput | ForEach-Object { Write-Host $_ }
+        $partDesignText = $partDesignOutput -join "`n"
+        if (
+            $LASTEXITCODE -ne 0 -or
+            $partDesignText -notmatch "FREECAD_PARTDESIGN_SMOKE_OK"
+        ) {
+            throw "O teste de Part Design parametrico do FreeCAD falhou."
+        }
     }
     if (Test-Path -LiteralPath $FreeCadExeFile) {
         $FreeCadExe = (Get-Content -Raw $FreeCadExeFile).Trim()

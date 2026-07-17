@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from functools import partial
 from typing import Any, Protocol
 
+from aicad.core.partdesign_registry import PARTDESIGN_FEATURES
 from aicad.core.tool_registry import ToolRegistry, build_default_registry
 
 
@@ -529,7 +531,22 @@ def build_cad_tool_registry(adapter: CadAdapter) -> ToolRegistry:
         "cad.export_stl": "export_stl",
         "cad.export_step": "export_step",
         "cad.undo": "undo",
+        "cad.create_body": "create_body",
+        "cad.create_body_sketch": "create_body_sketch",
+        "cad.set_sketch_datum": "set_sketch_datum",
+        "cad.get_sketch_status": "get_sketch_status",
+        "cad.edit_feature": "edit_feature",
     }
     for tool_name, method_name in bindings.items():
         bind(tool_name, method_name)
+
+    generic_feature = getattr(adapter, "create_partdesign_feature", None)
+    for definition in PARTDESIGN_FEATURES:
+        if generic_feature is None:
+            bind(definition.tool_name, "create_partdesign_feature")
+        else:
+            registry.bind(
+                definition.tool_name,
+                partial(generic_feature, definition.tool_name),
+            )
     return registry

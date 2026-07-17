@@ -17,7 +17,10 @@ regras do produto permanecem independentes dele.
 
 - FreeCAD 1.1.1 instalado no Windows;
 - Workbench **TALOS MCP** com painel de ponte, capacidades, aprovações e atividade;
-- 92 ferramentas no mesmo `ToolRegistry` para a ponte e o servidor MCP;
+- 104 ferramentas no mesmo `ToolRegistry` para a ponte e o servidor MCP;
+- núcleo Part Design paramétrico (P1): Body, sketches anexados aos planos de
+  origem, pad/pocket/revolução/groove/padrões por reflexão governada, edição
+  por cota e status de restrições do sketch;
 - M0 a M7 concluídos; E1 — MCP em escala em execução;
 - modelagem básica e avançada, Sketch, montagens, rolamentos e exportação;
 - mutações transacionais, validadas, auditadas e reversíveis;
@@ -34,6 +37,8 @@ conecta ao MCP.
 
 ### Atualizações recentes
 
+- P1 entregue: 12 ferramentas Part Design paramétricas geradas de um registro
+  declarativo com allowlist ([plano P](docs/partdesign-roadmap.md));
 - E1.1 concluída com busca escalável de capacidades e schemas sob demanda;
 - erros recuperáveis compartilhados entre catálogo, ponte e MCP;
 - capturas independentes de vários ângulos em uma única chamada;
@@ -60,6 +65,7 @@ FreeCAD por script. O painel também oferece a configuração MCP pronta para co
 | Contexto | documentos, seleção, medidas, vistas múltiplas e cortes visuais |
 | Primitivas | caixa, cilindro, cone, esfera, toro e placas |
 | Sketch | 24 ferramentas de geometria, restrições, cotas, edição e inspeção |
+| Part Design | Body paramétrico, sketch anexado, pad, pocket, revolução, groove, padrões, edição por cota e graus de liberdade |
 | Features | pad, revolução, loft, sweep, furos, booleanas, filetes e chanfros |
 | Repetição | espelho, padrões lineares, polares e padrões de furos |
 | Mecânica | engrenagens, roscas, montagens, interferência e alinhamento |
@@ -120,7 +126,7 @@ esclarecimentos e exposição indevida de mutações. A economia de schema repor
 
 ## Regras do repositório
 
-- MCP é o produto principal; a IA embutida recebe apenas manutenção.
+- MCP é o produto principal; não existe IA embutida no Workbench.
 - FreeCAD permanece atrás do adaptador.
 - Chat e MCP usam o mesmo `ToolRegistry`.
 - Toda mutação CAD é transacional, validada e reversível.
@@ -139,3 +145,9 @@ esclarecimentos e exposição indevida de mutações. A economia de schema repor
 - [Baseline M0–M7](docs/milestones.md)
 - [Otimização do agente](docs/ai-agent-optimization-plan.md)
 - [E1 — MCP em escala](docs/mcp-scale-roadmap.md)
+- [P — Part Design profissional](docs/partdesign-roadmap.md)
+- [Estudo do concorrente freecad-mcp](docs/estudo-freecad-mcp.md)
+
+## Licença
+
+LGPL-2.1-or-later, alinhada ao FreeCAD. Veja [LICENSE](LICENSE).

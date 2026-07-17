@@ -146,7 +146,7 @@ def sketch_tool_specs() -> tuple[ToolSpec, ...]:
                 ("sketch", "center_x", "center_y", "radius"),
             ),
             ("adicionar círculo", "círculo no sketch", "add sketch circle"),
-            ("círculo", "raio", "centro", "circle", "radius"),
+            ("círculo", "circunferência", "raio", "centro", "circle", "radius"),
             "Adicione um círculo de raio 8 mm no centro 20,15.",
             184,
         ),

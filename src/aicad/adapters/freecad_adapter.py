@@ -10,6 +10,7 @@ from aicad.adapters.freecad.export import ExportMixin
 from aicad.adapters.freecad.features import FeatureMixin
 from aicad.adapters.freecad.mechanical import MechanicalMixin
 from aicad.adapters.freecad.objects import ObjectMixin
+from aicad.adapters.freecad.partdesign import PartDesignMixin
 from aicad.adapters.freecad.patterns import PatternMixin
 from aicad.adapters.freecad.primitives import PrimitiveMixin
 from aicad.adapters.freecad.sketches import SketchMixin
@@ -26,6 +27,7 @@ class FreeCadAdapter(
     SketchMixin,
     SketchGeometryMixin,
     SketchConstraintMixin,
+    PartDesignMixin,
     FeatureMixin,
     SweepMixin,
     PatternMixin,
