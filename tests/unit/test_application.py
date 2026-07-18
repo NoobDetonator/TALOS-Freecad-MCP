@@ -1,6 +1,6 @@
 from typing import Any
 
-from aicad.application import build_cad_tool_registry
+from talos.application import build_cad_tool_registry
 
 
 class FakeCadAdapter:

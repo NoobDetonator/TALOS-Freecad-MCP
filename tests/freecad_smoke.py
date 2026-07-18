@@ -6,18 +6,18 @@ import sys
 project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root / "src"))
 
-from aicad.adapters.freecad_adapter import FreeCadAdapter
-from aicad.application import build_cad_tool_registry
-from aicad.core.context import DocumentStateToken
-from aicad.core.tool_registry import build_default_registry
-from aicad.orchestration import OrchestrationPlan, PlannedToolCall
-from aicad.orchestration.plan_service import (
+from talos.adapters.freecad_adapter import FreeCadAdapter
+from talos.application import build_cad_tool_registry
+from talos.core.context import DocumentStateToken
+from talos.core.tool_registry import build_default_registry
+from talos.orchestration import OrchestrationPlan, PlannedToolCall
+from talos.orchestration.plan_service import (
     CompositeApprovalGrant,
     CompositePlanError,
     CompositePlanExecutor,
     CompositeValidatedPlan,
 )
-from aicad.orchestration.plans import (
+from talos.orchestration.plans import (
     ApprovalGrant,
     SingleMutationPlanExecutor,
     ValidatedPlan,
@@ -28,7 +28,7 @@ import FreeCAD as App
 
 for document_name in list(App.listDocuments()):
     App.closeDocument(document_name)
-App.newDocument("AICadSmokeTest")
+App.newDocument("TalosSmokeTest")
 adapter = FreeCadAdapter()
 result = adapter.create_box(10, 20, 30, "SmokeTestBox")
 cylinder_result = adapter.create_cylinder(30, 60, "SmokeTestCylinder")
@@ -232,4 +232,4 @@ assert math.isclose(compound_mass["volume_mm3"], 7000.0, rel_tol=1e-9)
 assert math.isclose(compound_mass["mass_g"], 8.68, rel_tol=1e-9)
 
 print("FREECAD_SMOKE_OK")
-App.closeDocument("AICadSmokeTest")
+App.closeDocument("TalosSmokeTest")

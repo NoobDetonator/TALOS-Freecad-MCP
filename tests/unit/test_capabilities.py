@@ -5,12 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from aicad.core.capabilities import (
+from talos.core.capabilities import (
     MAX_CAPABILITY_DESCRIPTIONS,
     CapabilityCatalog,
 )
-from aicad.core.tool_registry import ToolRisk, build_default_registry
-from aicad.evaluation.benchmark import BenchmarkExpectedOutcome, load_corpus
+from talos.core.tool_registry import ToolRisk, build_default_registry
+from talos.evaluation.benchmark import BenchmarkExpectedOutcome, load_corpus
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]

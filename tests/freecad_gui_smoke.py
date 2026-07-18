@@ -12,7 +12,7 @@ project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root / ".venv" / "Lib" / "site-packages"))
 sys.path.insert(0, str(project_root / "src"))
 
-from aicad.bridge.protocol import (
+from talos.bridge.protocol import (
     BridgePlanCancelRequest,
     BridgePlanStatusRequest,
     BridgePlanSubmitRequest,
@@ -21,16 +21,16 @@ from aicad.bridge.protocol import (
     BridgeTransportRequest,
 )
 
-from aicad.bridge.session import default_session_store
-from aicad.bridge.transport import TcpBridgeClient
-from aicad.core.context import DocumentStateToken
-from aicad.core.visual_cache import read_capture
-from aicad.orchestration import OrchestrationPlan, PlannedToolCall
-from aicad.orchestration.plan_service import (
+from talos.bridge.session import default_session_store
+from talos.bridge.transport import TcpBridgeClient
+from talos.core.context import DocumentStateToken
+from talos.core.visual_cache import read_capture
+from talos.orchestration import OrchestrationPlan, PlannedToolCall
+from talos.orchestration.plan_service import (
     CompositePlanStatus,
     CompositeValidatedPlan,
 )
-from aicad.runtime import get_audit_service, get_tool_registry
+from talos.runtime import get_audit_service, get_tool_registry
 
 
 import FreeCAD as App
@@ -38,8 +38,8 @@ import FreeCADGui as Gui
 from PySide import QtCore, QtWidgets
 
 
-result_path = Path(os.environ["AICAD_GUI_RESULT"])
-screenshot_path = Path(os.environ["AICAD_GUI_SCREENSHOT"])
+result_path = Path(os.environ["TALOS_GUI_RESULT"])
+screenshot_path = Path(os.environ["TALOS_GUI_SCREENSHOT"])
 
 
 def wait_for_ui(predicate, timeout: float = 8.0) -> None:
@@ -64,27 +64,27 @@ def inspect() -> None:
         for document_name in list(App.listDocuments()):
             App.closeDocument(document_name)
 
-        assert "AICadWorkbench" in Gui.listWorkbenches()
-        Gui.activateWorkbench("AICadWorkbench")
+        assert "TalosWorkbench" in Gui.listWorkbenches()
+        Gui.activateWorkbench("TalosWorkbench")
         QtWidgets.QApplication.processEvents()
 
         main_window = Gui.getMainWindow()
-        dock = main_window.findChild(QtWidgets.QDockWidget, "AICadChatDock")
+        dock = main_window.findChild(QtWidgets.QDockWidget, "TalosChatDock")
         assert dock is not None and dock.isVisible()
-        prompt = dock.findChild(QtWidgets.QPlainTextEdit, "AICadPrompt")
-        send = dock.findChild(QtWidgets.QPushButton, "AICadSend")
-        apply_button = dock.findChild(QtWidgets.QPushButton, "AICadApply")
-        history = dock.findChild(QtWidgets.QTextBrowser, "AICadHistory")
+        prompt = dock.findChild(QtWidgets.QPlainTextEdit, "TalosPrompt")
+        send = dock.findChild(QtWidgets.QPushButton, "TalosSend")
+        apply_button = dock.findChild(QtWidgets.QPushButton, "TalosApply")
+        history = dock.findChild(QtWidgets.QTextBrowser, "TalosHistory")
         configure_key = dock.findChild(
             QtWidgets.QPushButton,
-            "AICadConfigureApiKey",
+            "TalosConfigureApiKey",
         )
-        remove_key = dock.findChild(QtWidgets.QPushButton, "AICadRemoveApiKey")
-        cancel_ai = dock.findChild(QtWidgets.QPushButton, "AICadCancelAi")
-        use_deepseek = dock.findChild(QtWidgets.QCheckBox, "AICadUseDeepSeek")
+        remove_key = dock.findChild(QtWidgets.QPushButton, "TalosRemoveApiKey")
+        cancel_ai = dock.findChild(QtWidgets.QPushButton, "TalosCancelAi")
+        use_deepseek = dock.findChild(QtWidgets.QCheckBox, "TalosUseDeepSeek")
         quick_test_mode = dock.findChild(
             QtWidgets.QCheckBox,
-            "AICadQuickTestMode",
+            "TalosQuickTestMode",
         )
         assert all(
             widget is not None
@@ -374,7 +374,7 @@ def inspect() -> None:
             ),
         )
         assert visual_context.status is BridgeResponseStatus.COMPLETED
-        assert visual_context.result["resource_uri"].startswith("aicad://view/")
+        assert visual_context.result["resource_uri"].startswith("talos://view/")
         assert read_capture(visual_context.result["capture_id"]).startswith(b"\x89PNG")
         camera_before_views = Gui.activeDocument().activeView().getCamera()
         visual_views = run_bridge_request(

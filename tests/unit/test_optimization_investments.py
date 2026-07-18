@@ -7,12 +7,12 @@ from uuid import uuid4
 
 import pytest
 
-from aicad import mcp_server
-from aicad.bridge.protocol import BridgeResponse, BridgeResponseStatus
-from aicad.core.tool_registry import build_default_registry
-from aicad.core.tool_selector import normalize_search_text
-from aicad.evaluation.benchmark import load_corpus, run_tool_retrieval_benchmark
-from aicad.mcp_telemetry import McpTelemetryRecorder
+from talos import mcp_server
+from talos.bridge.protocol import BridgeResponse, BridgeResponseStatus
+from talos.core.tool_registry import build_default_registry
+from talos.core.tool_selector import normalize_search_text
+from talos.evaluation.benchmark import load_corpus, run_tool_retrieval_benchmark
+from talos.mcp_telemetry import McpTelemetryRecorder
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -141,7 +141,7 @@ def test_unified_model_inspection_batches_reads_and_checks_state(
         elif request.tool_name == "cad.get_dependencies":
             result = {"name": "Part", "depends_on": [], "used_by": []}
         elif request.tool_name == "cad.capture_views":
-            result = {"count": 1, "captures": [{"resource_uri": "aicad://view/one"}]}
+            result = {"count": 1, "captures": [{"resource_uri": "talos://view/one"}]}
         else:  # pragma: no cover - protects the test contract
             raise AssertionError(request.tool_name)
         return BridgeResponse(

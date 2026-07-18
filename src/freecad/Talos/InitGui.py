@@ -1,0 +1,66 @@
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+import FreeCADGui as Gui
+
+
+def _project_root(
+    path_type=Path,
+    environment=os.environ,
+    module_search_paths=tuple(sys.path),
+):
+    configured = environment.get("TALOS_PROJECT_ROOT")
+    if configured:
+        candidate = path_type(configured).expanduser().resolve()
+        if (candidate / "src" / "talos").is_dir():
+            return candidate
+
+    # O carregador do FreeCAD não define __file__ para InitGui.py, mas inclui o
+    # diretório do Workbench em sys.path. O junction recomendado resolve desse
+    # diretório versionado de usuário para o checkout do projeto.
+    for search_path in module_search_paths:
+        module_path = path_type(search_path or ".").resolve()
+        if not (module_path / "InitGui.py").is_file():
+            continue
+        for candidate in module_path.parents:
+            if (candidate / "pyproject.toml").is_file() and (
+                candidate / "src" / "talos"
+            ).is_dir():
+                return candidate
+    return None
+
+
+root_path = _project_root()
+if root_path is not None:
+    dependency_path = str(root_path / ".venv" / "Lib" / "site-packages")
+    source_path = str(root_path / "src")
+    for import_path in (source_path, dependency_path):
+        if Path(import_path).is_dir() and import_path not in sys.path:
+            sys.path.insert(0, import_path)
+
+
+class TalosWorkbench(Workbench):
+    MenuText = "TALOS MCP"
+    ToolTip = "Servidor MCP seguro e estruturado para o FreeCAD"
+
+    def Initialize(self) -> None:
+        from talos.freecad_commands import register_commands
+
+        register_commands()
+        self.appendToolbar("TALOS MCP", ["Talos_ShowMcpPanel"])
+        self.appendMenu("TALOS MCP", ["Talos_ShowMcpPanel"])
+
+    def Activated(self) -> None:
+        from talos.ui.talos_panel import show_mcp_panel
+
+        show_mcp_panel()
+
+    def GetClassName(self) -> str:
+        return "Gui::PythonWorkbench"
+
+
+if "TalosWorkbench" not in Gui.listWorkbenches():
+    Gui.addWorkbench(TalosWorkbench())

@@ -1,6 +1,6 @@
 from uuid import UUID, uuid4
 
-from aicad.bridge.protocol import (
+from talos.bridge.protocol import (
     BridgePlanCancelRequest,
     BridgePlanStatusRequest,
     BridgePlanSubmitRequest,
@@ -8,8 +8,8 @@ from aicad.bridge.protocol import (
     BridgeResponse,
     BridgeResponseStatus,
 )
-from aicad.core.context import DocumentStateToken
-from aicad import mcp_server
+from talos.core.context import DocumentStateToken
+from talos import mcp_server
 
 
 def test_submit_cad_plan_freezes_the_gui_baseline_and_sends_one_plan(monkeypatch) -> None:

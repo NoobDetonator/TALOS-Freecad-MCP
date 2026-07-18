@@ -4,21 +4,21 @@ from uuid import uuid4
 
 import pytest
 
-from aicad.bridge.protocol import (
+from talos.bridge.protocol import (
     BridgeErrorCode,
     BridgeRequest,
     BridgeResponse,
     BridgeResponseStatus,
     validate_request_payload,
 )
-from aicad.bridge.transport import (
+from talos.bridge.transport import (
     BridgeEndpoint,
     BridgeTransportError,
     LocalTcpBridgeServer,
     TcpBridgeClient,
     create_session_token,
 )
-from aicad.core.tool_registry import build_default_registry
+from talos.core.tool_registry import build_default_registry
 
 
 def build_request(

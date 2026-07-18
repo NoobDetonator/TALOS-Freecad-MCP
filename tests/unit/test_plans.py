@@ -5,10 +5,10 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from aicad.core.context import DocumentStateToken
-from aicad.core.tool_registry import build_default_registry
-from aicad.orchestration import OrchestrationPlan, PlannedToolCall
-from aicad.orchestration.plans import (
+from talos.core.context import DocumentStateToken
+from talos.core.tool_registry import build_default_registry
+from talos.orchestration import OrchestrationPlan, PlannedToolCall
+from talos.orchestration.plans import (
     ApprovalGrant,
     PlanApprovalError,
     PlanExecutionError,

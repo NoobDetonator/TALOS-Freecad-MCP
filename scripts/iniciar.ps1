@@ -8,10 +8,10 @@ if (-not (Test-Path -LiteralPath $FreeCadExeFile)) {
 }
 
 $FreeCadExe = (Get-Content -Raw $FreeCadExeFile).Trim()
-$env:AICAD_PROJECT_ROOT = $ProjectRoot
+$env:TALOS_PROJECT_ROOT = $ProjectRoot
 $userConfig = Join-Path $Runtime "user.cfg"
 $systemConfig = Join-Path $Runtime "system.cfg"
-$modulePath = Join-Path $ProjectRoot "src\freecad\AiCad"
+$modulePath = Join-Path $ProjectRoot "src\freecad\Talos"
 $pythonPath = Join-Path $ProjectRoot "src"
 
 Start-Process -FilePath $FreeCadExe -ArgumentList @(

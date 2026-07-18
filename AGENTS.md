@@ -1,4 +1,4 @@
-# AI CAD Workbench — orientações do repositório
+# TALOS Workbench — orientações do repositório
 
 - O produto principal é o servidor MCP consumido por agentes externos (Claude Code, Codex, Cursor). A IA embutida (chat DeepSeek) foi removida; não reintroduza chat interno nem provedores de modelo dentro do Workbench.
 - M0 a M7 formam a baseline concluída. O trabalho de capacidade segue o plano P em `docs/partdesign-roadmap.md` (Part Design paramétrico via reflexão governada); frentes E1 pendentes ficam adiadas até o P concluir.

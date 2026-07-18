@@ -1,8 +1,8 @@
 import pytest
 
-from aicad.adapters.freecad.sweeps import _planned_corner_arcs
-from aicad.adapters.freecad_adapter import FreeCadAdapter
-from aicad.core.tool_registry import (
+from talos.adapters.freecad.sweeps import _planned_corner_arcs
+from talos.adapters.freecad_adapter import FreeCadAdapter
+from talos.core.tool_registry import (
     ToolInputError,
     ToolRisk,
     build_default_registry,

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from aicad.core.tool_registry import ToolRisk, build_default_registry
-from aicad.core.tool_selector import ToolSelector, normalize_search_text
-from aicad.evaluation.benchmark import (
+from talos.core.tool_registry import ToolRisk, build_default_registry
+from talos.core.tool_selector import ToolSelector, normalize_search_text
+from talos.evaluation.benchmark import (
     BenchmarkExpectedOutcome,
     load_corpus,
 )

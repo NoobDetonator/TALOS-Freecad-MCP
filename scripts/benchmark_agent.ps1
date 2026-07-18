@@ -19,7 +19,7 @@ $env:PYTHONUTF8 = "1"
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 
 $PythonArguments = @(
-    "-m", "aicad.evaluation.benchmark",
+    "-m", "talos.evaluation.benchmark",
     "--format", $Format
 )
 if ($Corpus) {

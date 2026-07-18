@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import time
 
-from aicad.core.visual_cache import (
+from talos.core.visual_cache import (
     MAX_CACHED_CAPTURES,
     capture_path,
     new_capture_path,
@@ -13,7 +13,7 @@ from aicad.core.visual_cache import (
 
 
 def test_visual_cache_uses_opaque_ids_and_prunes_old_files(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("AICAD_VISUAL_CACHE", str(tmp_path))
+    monkeypatch.setenv("TALOS_VISUAL_CACHE", str(tmp_path))
     created = []
     base_time = time.time() - MAX_CACHED_CAPTURES - 10
     for index in range(MAX_CACHED_CAPTURES + 2):

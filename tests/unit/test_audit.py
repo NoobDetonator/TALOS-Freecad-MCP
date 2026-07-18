@@ -6,8 +6,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from aicad.adapters.freecad_adapter import FreeCadAdapter
-from aicad.audit import (
+from talos.adapters.freecad_adapter import FreeCadAdapter
+from talos.audit import (
     REDACTION_MARKER,
     AuditActionKind,
     AuditActionRecord,
@@ -30,13 +30,13 @@ from aicad.audit import (
     default_audit_store,
     redact_json,
 )
-from aicad.core.tool_registry import (
+from talos.core.tool_registry import (
     ToolRegistry,
     ToolRisk,
     ToolSpec,
     build_default_registry,
 )
-from aicad.core.transactions import (
+from talos.core.transactions import (
     CadTransactionOutcome,
     mark_transaction,
     transaction_trace,
@@ -237,7 +237,7 @@ def test_recorder_persists_redacted_lifecycle_and_exports_without_overwrite(
                 transaction_id="tx-box-1",
                 call_id="box-1",
                 sequence=1,
-                label="AI CAD: create Box",
+                label="TALOS: create Box",
                 outcome=AuditTransactionOutcome.COMMITTED,
             ),
         ),
@@ -320,7 +320,7 @@ def test_store_applies_age_action_and_session_retention(tmp_path) -> None:
 
 def test_default_store_honors_explicit_local_directory(monkeypatch, tmp_path) -> None:
     destination = tmp_path / "private-audit"
-    monkeypatch.setenv("AICAD_AUDIT_DIR", str(destination))
+    monkeypatch.setenv("TALOS_AUDIT_DIR", str(destination))
 
     store = default_audit_store()
 
@@ -469,7 +469,7 @@ def test_undo_does_not_misattribute_an_intervening_freecad_transaction(
         ActiveDocument = Document()
 
     adapter = FreeCadAdapter()
-    adapter._audited_transactions.append(("tx-original", "AI CAD original", 1))
+    adapter._audited_transactions.append(("tx-original", "TALOS original", 1))
     monkeypatch.setattr(adapter, "_modules", lambda: (App, object()))
 
     with transaction_trace(uuid4(), "undo-intervening") as intervening:
@@ -477,7 +477,7 @@ def test_undo_does_not_misattribute_an_intervening_freecad_transaction(
     assert intervening.outcome is CadTransactionOutcome.UNDONE
     assert intervening.transaction_id != "tx-original"
     assert adapter._audited_transactions == [
-        ("tx-original", "AI CAD original", 1)
+        ("tx-original", "TALOS original", 1)
     ]
 
     with transaction_trace(uuid4(), "undo-original") as original:

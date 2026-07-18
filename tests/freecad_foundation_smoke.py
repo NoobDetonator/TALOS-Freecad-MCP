@@ -6,8 +6,8 @@ import sys
 project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root / "src"))
 
-from aicad.adapters.freecad_adapter import FreeCadAdapter
-from aicad.application import build_cad_tool_registry
+from talos.adapters.freecad_adapter import FreeCadAdapter
+from talos.application import build_cad_tool_registry
 
 import FreeCAD as App
 
@@ -22,7 +22,7 @@ def close_enough(actual: float, expected: float, *, tolerance: float = 1e-6) -> 
 for open_name in list(App.listDocuments()):
     App.closeDocument(open_name)
 
-document = App.newDocument("AICadFoundationSmoke")
+document = App.newDocument("TalosFoundationSmoke")
 document.UndoMode = 1
 adapter = FreeCadAdapter()
 registry = build_cad_tool_registry(adapter)

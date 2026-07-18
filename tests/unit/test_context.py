@@ -5,7 +5,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from aicad.core.context import (
+from talos.core.context import (
     ContextDetailLevel,
     ContextPage,
     ContextSnapshot,

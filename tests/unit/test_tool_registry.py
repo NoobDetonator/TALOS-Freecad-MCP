@@ -1,7 +1,7 @@
 import pytest
 
-from aicad.core.tool_catalog import CATALOG_BUILDERS, default_tool_specs
-from aicad.core.tool_registry import (
+from talos.core.tool_catalog import CATALOG_BUILDERS, default_tool_specs
+from talos.core.tool_registry import (
     ToolConfirmationRequired,
     ToolInputError,
     ToolRegistry,
@@ -12,25 +12,25 @@ from aicad.core.tool_registry import (
 
 
 EXPECTED_CATALOG_FAMILIES = {
-    "aicad.core.tool_catalog.assembly": {"analysis", "assembly"},
-    "aicad.core.tool_catalog.bearings": {"bearing"},
-    "aicad.core.tool_catalog.context": {"analysis", "context", "measurement"},
-    "aicad.core.tool_catalog.documents": {"document", "export"},
-    "aicad.core.tool_catalog.editing": {"edit"},
-    "aicad.core.tool_catalog.governance": {"history", "validation"},
-    "aicad.core.tool_catalog.mechanical": {"mechanical"},
-    "aicad.core.tool_catalog.modeling": {
+    "talos.core.tool_catalog.assembly": {"analysis", "assembly"},
+    "talos.core.tool_catalog.bearings": {"bearing"},
+    "talos.core.tool_catalog.context": {"analysis", "context", "measurement"},
+    "talos.core.tool_catalog.documents": {"document", "export"},
+    "talos.core.tool_catalog.editing": {"edit"},
+    "talos.core.tool_catalog.governance": {"history", "validation"},
+    "talos.core.tool_catalog.mechanical": {"mechanical"},
+    "talos.core.tool_catalog.modeling": {
         "boolean",
         "feature",
         "finish",
         "sketch",
     },
-    "aicad.core.tool_catalog.objects": {"object"},
-    "aicad.core.tool_catalog.parameters": {"parameters"},
-    "aicad.core.tool_catalog.partdesign": {"partdesign"},
-    "aicad.core.tool_catalog.patterns": {"pattern"},
-    "aicad.core.tool_catalog.primitives": {"primitive"},
-    "aicad.core.tool_catalog.sketching": {"sketch"},
+    "talos.core.tool_catalog.objects": {"object"},
+    "talos.core.tool_catalog.parameters": {"parameters"},
+    "talos.core.tool_catalog.partdesign": {"partdesign"},
+    "talos.core.tool_catalog.patterns": {"pattern"},
+    "talos.core.tool_catalog.primitives": {"primitive"},
+    "talos.core.tool_catalog.sketching": {"sketch"},
 }
 
 

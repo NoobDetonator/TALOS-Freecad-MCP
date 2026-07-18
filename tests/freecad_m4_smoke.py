@@ -6,27 +6,27 @@ import os
 import sys
 
 
-project_root = Path(os.environ["AICAD_PROJECT_ROOT"])
+project_root = Path(os.environ["TALOS_PROJECT_ROOT"])
 sys.path.insert(0, str(project_root / "src"))
 
 import FreeCAD as App
 
-from aicad.adapters.freecad_adapter import FreeCadAdapter
-from aicad.application import build_cad_tool_registry
-from aicad.core.context import DocumentStateToken
-from aicad.orchestration.plan_service import (
+from talos.adapters.freecad_adapter import FreeCadAdapter
+from talos.application import build_cad_tool_registry
+from talos.core.context import DocumentStateToken
+from talos.orchestration.plan_service import (
     CompositeApprovalGrant,
     CompositePlanExecutor,
     CompositeValidatedPlan,
     PlanService,
 )
-from aicad.orchestration.recipes import default_recipe_catalog
+from talos.orchestration.recipes import default_recipe_catalog
 
 
 for document_name in list(App.listDocuments()):
     App.closeDocument(document_name)
 
-document = App.newDocument("AICadM4Smoke")
+document = App.newDocument("TalosM4Smoke")
 document.UndoMode = 1
 adapter = FreeCadAdapter()
 registry = build_cad_tool_registry(adapter)

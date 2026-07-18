@@ -6,22 +6,22 @@ from uuid import uuid4
 
 import pytest
 
-from aicad.application import build_cad_tool_registry
-from aicad.audit import (
+from talos.application import build_cad_tool_registry
+from talos.audit import (
     AuditActionStatus,
     AuditApprovalDecision,
     AuditService,
     AuditSource,
     AuditStore,
 )
-from aicad.bridge.dispatcher import BridgeDispatcher
-from aicad.bridge.protocol import (
+from talos.bridge.dispatcher import BridgeDispatcher
+from talos.bridge.protocol import (
     BridgeError,
     BridgeErrorCode,
     BridgeRequest,
     BridgeResponseStatus,
 )
-from aicad.core.tool_results import ToolErrorCategory, ToolRecoveryActionType
+from talos.core.tool_results import ToolErrorCategory, ToolRecoveryActionType
 
 
 class RecordingAdapter:

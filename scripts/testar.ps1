@@ -5,13 +5,13 @@ $VenvPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 $VenvSitePackages = Join-Path $ProjectRoot ".venv\Lib\site-packages"
 $FreeCadCmdFile = Join-Path $Runtime "freecadcmd-exe.txt"
 $FreeCadExeFile = Join-Path $Runtime "freecad-exe.txt"
-$FreeCadModule = Join-Path $ProjectRoot "src\freecad\AiCad"
+$FreeCadModule = Join-Path $ProjectRoot "src\freecad\Talos"
 $UserConfig = Join-Path $Runtime "test-user.cfg"
 $SystemConfig = Join-Path $Runtime "test-system.cfg"
 $PytestTemp = Join-Path $Runtime ("pytest-" + $PID)
 $GuiSmokeTimeoutSeconds = 120
-$env:AICAD_VISUAL_CACHE = Join-Path $Runtime "visual-cache"
-$env:AICAD_AUDIT_DIR = Join-Path $Runtime "audit"
+$env:TALOS_VISUAL_CACHE = Join-Path $Runtime "visual-cache"
+$env:TALOS_AUDIT_DIR = Join-Path $Runtime "audit"
 $env:TALOS_AUTO_APPROVE = "0"
 
 if (-not (Test-Path -LiteralPath $VenvPython)) {
@@ -25,9 +25,9 @@ if ($LASTEXITCODE -ne 0) {
     throw "A verificacao estatica do Ruff falhou."
 }
 & $VenvPython -m mypy `
-    src\aicad\core\schema_validation.py `
-    src\aicad\core\tool_registry.py `
-    src\aicad\core\transactions.py
+    src\talos\core\schema_validation.py `
+    src\talos\core\tool_registry.py `
+    src\talos\core\transactions.py
 if ($LASTEXITCODE -ne 0) {
     throw "A verificacao de tipos do nucleo falhou."
 }
@@ -36,17 +36,17 @@ if ($LASTEXITCODE -ne 0) {
     & $VenvPython -m pytest `
         --basetemp $PytestTemp `
         -p no:cacheprovider `
-        --cov=aicad.core `
-        --cov=aicad.bridge `
-        --cov=aicad.audit `
-        --cov=aicad.orchestration `
+        --cov=talos.core `
+        --cov=talos.bridge `
+        --cov=talos.audit `
+        --cov=talos.orchestration `
         --cov-fail-under=80
     if ($LASTEXITCODE -ne 0) {
         throw "Os testes unitarios falharam."
     }
     if (Test-Path -LiteralPath $FreeCadCmdFile) {
         $FreeCadCmd = (Get-Content -Raw $FreeCadCmdFile).Trim()
-        $env:AICAD_PROJECT_ROOT = $ProjectRoot
+        $env:TALOS_PROJECT_ROOT = $ProjectRoot
         $freeCadOutput = & $FreeCadCmd -u $UserConfig -s $SystemConfig `
             -M $FreeCadModule `
             -P $VenvSitePackages `
@@ -163,8 +163,8 @@ if ($LASTEXITCODE -ne 0) {
         $guiResult = Join-Path $Runtime "gui-smoke-result.txt"
         $guiScreenshot = Join-Path $Runtime "gui-smoke-panel.png"
         $guiLog = Join-Path $Runtime "gui-smoke.log"
-        $env:AICAD_GUI_RESULT = $guiResult
-        $env:AICAD_GUI_SCREENSHOT = $guiScreenshot
+        $env:TALOS_GUI_RESULT = $guiResult
+        $env:TALOS_GUI_SCREENSHOT = $guiScreenshot
         $arguments = @(
             '-M', ('"' + $FreeCadModule + '"'),
             '-P', ('"' + (Join-Path $ProjectRoot "src") + '"'),

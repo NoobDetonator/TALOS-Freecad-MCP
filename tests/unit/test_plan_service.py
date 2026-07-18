@@ -6,17 +6,17 @@ from uuid import UUID
 
 import pytest
 
-from aicad.audit import (
+from talos.audit import (
     AuditActionKind,
     AuditActionStatus,
     AuditApprovalDecision,
     AuditService,
     AuditStore,
 )
-from aicad.core.context import DocumentStateToken
-from aicad.core.tool_registry import build_default_registry
-from aicad.orchestration import OrchestrationPlan, PlannedToolCall
-from aicad.orchestration.plan_service import (
+from talos.core.context import DocumentStateToken
+from talos.core.tool_registry import build_default_registry
+from talos.orchestration import OrchestrationPlan, PlannedToolCall
+from talos.orchestration.plan_service import (
     CompositeApprovalGrant,
     CompositePlanError,
     CompositePlanExecutor,

@@ -13,7 +13,7 @@ $Venv = Join-Path $ProjectRoot ".venv"
 New-Item -ItemType Directory -Force -Path $Downloads, $Tools, $Runtime | Out-Null
 
 Write-Host "Consultando a versão oficial do FreeCAD $FreeCadVersion..."
-$headers = @{ "User-Agent" = "ai-cad-workbench-setup" }
+$headers = @{ "User-Agent" = "talos-freecad-mcp-setup" }
 $releaseUrl = "https://api.github.com/repos/FreeCAD/FreeCAD/releases/tags/$FreeCadVersion"
 $release = Invoke-RestMethod -Headers $headers -Uri $releaseUrl
 $asset = $release.assets | Where-Object {

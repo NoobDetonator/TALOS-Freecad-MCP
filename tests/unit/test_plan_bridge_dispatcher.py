@@ -4,19 +4,19 @@ import hashlib
 import json
 from uuid import UUID, uuid4
 
-from aicad.bridge.plan_dispatcher import PlanBridgeDispatcher
-from aicad.bridge.protocol import (
+from talos.bridge.plan_dispatcher import PlanBridgeDispatcher
+from talos.bridge.protocol import (
     BridgeErrorCode,
     BridgePlanCancelRequest,
     BridgePlanStatusRequest,
     BridgePlanSubmitRequest,
     BridgeResponseStatus,
 )
-from aicad.bridge.transport import LocalTcpBridgeServer, TcpBridgeClient
-from aicad.core.context import DocumentStateToken
-from aicad.core.tool_registry import build_default_registry
-from aicad.orchestration import OrchestrationPlan, PlannedToolCall
-from aicad.orchestration.plan_service import (
+from talos.bridge.transport import LocalTcpBridgeServer, TcpBridgeClient
+from talos.core.context import DocumentStateToken
+from talos.core.tool_registry import build_default_registry
+from talos.orchestration import OrchestrationPlan, PlannedToolCall
+from talos.orchestration.plan_service import (
     CompositePlanStatus,
     CompositeValidatedPlan,
     PlanService,

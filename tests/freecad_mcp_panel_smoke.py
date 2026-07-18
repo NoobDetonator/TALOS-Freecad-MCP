@@ -12,22 +12,22 @@ project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root / ".venv" / "Lib" / "site-packages"))
 sys.path.insert(0, str(project_root / "src"))
 
-from aicad.bridge.protocol import (
+from talos.bridge.protocol import (
     BridgePlanStatusRequest,
     BridgePlanSubmitRequest,
     BridgeRequest,
     BridgeResponseStatus,
     BridgeTransportRequest,
 )
-from aicad.bridge.session import default_session_store
-from aicad.bridge.transport import TcpBridgeClient
-from aicad.core.context import DocumentStateToken
-from aicad.orchestration import OrchestrationPlan, PlannedToolCall
-from aicad.orchestration.plan_service import (
+from talos.bridge.session import default_session_store
+from talos.bridge.transport import TcpBridgeClient
+from talos.core.context import DocumentStateToken
+from talos.orchestration import OrchestrationPlan, PlannedToolCall
+from talos.orchestration.plan_service import (
     CompositePlanStatus,
     CompositeValidatedPlan,
 )
-from aicad.runtime import get_audit_service, get_tool_registry
+from talos.runtime import get_audit_service, get_tool_registry
 
 
 import FreeCAD as App
@@ -35,8 +35,8 @@ import FreeCADGui as Gui
 from PySide import QtCore, QtWidgets
 
 
-result_path = Path(os.environ["AICAD_GUI_RESULT"])
-screenshot_path = Path(os.environ["AICAD_GUI_SCREENSHOT"])
+result_path = Path(os.environ["TALOS_GUI_RESULT"])
+screenshot_path = Path(os.environ["TALOS_GUI_SCREENSHOT"])
 
 
 def wait_for_ui(predicate, timeout: float = 8.0) -> None:
@@ -67,8 +67,8 @@ def inspect() -> None:
         for document_name in list(App.listDocuments()):
             App.closeDocument(document_name)
 
-        assert "AICadWorkbench" in Gui.listWorkbenches()
-        Gui.activateWorkbench("AICadWorkbench")
+        assert "TalosWorkbench" in Gui.listWorkbenches()
+        Gui.activateWorkbench("TalosWorkbench")
         QtWidgets.QApplication.processEvents()
 
         main_window = Gui.getMainWindow()
@@ -108,12 +108,12 @@ def inspect() -> None:
         )
 
         for removed_name in (
-            "AICadPrompt",
-            "AICadSend",
-            "AICadConfigureApiKey",
-            "AICadRemoveApiKey",
-            "AICadUseDeepSeek",
-            "AICadQuickTestMode",
+            "TalosPrompt",
+            "TalosSend",
+            "TalosConfigureApiKey",
+            "TalosRemoveApiKey",
+            "TalosUseDeepSeek",
+            "TalosQuickTestMode",
         ):
             assert dock.findChild(QtCore.QObject, removed_name) is None
 
@@ -203,7 +203,7 @@ def inspect() -> None:
         )
         copied = json.loads(QtWidgets.QApplication.clipboard().text())
         assert copied["mcpServers"]["talos"]["command"].endswith(
-            ("talos-freecad-mcp.exe", "aicad-mcp.exe")
+            ("talos-freecad-mcp.exe", "talos-freecad-mcp.exe")
         )
         assert "token" not in json.dumps(copied).lower()
 

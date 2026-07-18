@@ -6,16 +6,16 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from aicad import mcp_server
-from aicad.bridge.protocol import (
+from talos import mcp_server
+from talos.bridge.protocol import (
     BridgePlanSubmitRequest,
     BridgeRequest,
     BridgeResponse,
     BridgeResponseStatus,
 )
-from aicad.core.context import DocumentStateToken
-from aicad.core.tool_registry import ToolRisk, build_default_registry
-from aicad.orchestration.recipes import default_recipe_catalog
+from talos.core.context import DocumentStateToken
+from talos.core.tool_registry import ToolRisk, build_default_registry
+from talos.orchestration.recipes import default_recipe_catalog
 
 
 def test_recipe_catalog_compiles_trusted_plans() -> None:
@@ -145,8 +145,8 @@ def test_mcp_projects_recipe_resources_and_prompts() -> None:
     templates = asyncio.run(mcp_server.mcp.list_resource_templates())
     prompts = asyncio.run(mcp_server.mcp.list_prompts())
 
-    assert any(str(item.uri) == "aicad://recipes" for item in resources)
-    assert any("aicad://view/" in item.uriTemplate for item in templates)
+    assert any(str(item.uri) == "talos://recipes" for item in resources)
+    assert any("talos://view/" in item.uriTemplate for item in templates)
     assert {item.name for item in prompts} >= {
         "model_mounting_plate",
         "model_flange",

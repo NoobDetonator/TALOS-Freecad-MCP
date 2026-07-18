@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from aicad.core.schema_validation import check_json_schema
-from aicad.core.semantic_refs import (
+from talos.core.schema_validation import check_json_schema
+from talos.core.semantic_refs import (
     EDGE_SELECTOR_SCHEMA,
     FACE_SELECTOR_SCHEMA,
     axis_vector,

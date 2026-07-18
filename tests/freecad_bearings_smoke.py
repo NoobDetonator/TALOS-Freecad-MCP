@@ -8,8 +8,8 @@ sys.path.insert(0, str(project_root / "src"))
 
 import FreeCAD as App
 
-from aicad.adapters.freecad_adapter import FreeCadAdapter
-from aicad.application import build_cad_tool_registry
+from talos.adapters.freecad_adapter import FreeCadAdapter
+from talos.application import build_cad_tool_registry
 
 
 for document_name in list(App.listDocuments()):

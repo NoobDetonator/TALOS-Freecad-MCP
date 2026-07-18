@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from aicad.core.inspection import inspect_model
+from talos.core.inspection import inspect_model
 
 
 TOKEN = {"revision": 1, "document_fingerprint": "a" * 64}

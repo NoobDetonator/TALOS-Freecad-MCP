@@ -153,7 +153,7 @@ junto com o CAD-IR completo (E1.3), se a prática mostrar necessidade.
   e recalcular válido, citando as ferramentas exatas de cada fase;
 - ✅ exemplos JSON completos em toda descrição de ferramenta nova (padrão
   aplicado desde o P1);
-- ✅ guia como recurso MCP (`aicad://guides/partdesign`), carregado sob
+- ✅ guia como recurso MCP (`talos://guides/partdesign`), carregado sob
   demanda, fora do payload normal.
 
 ### P5 — Biblioteca de partes e validação de engenharia (validação entregue)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from aicad.core.expressions import MAX_EXPRESSION_LENGTH, validate_expression
+from talos.core.expressions import MAX_EXPRESSION_LENGTH, validate_expression
 
 
 def test_accepts_parameter_arithmetic() -> None:

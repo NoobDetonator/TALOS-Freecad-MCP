@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from aicad.core.partdesign_registry import (
+from talos.core.partdesign_registry import (
     PARTDESIGN_FEATURES,
     editable_property_union,
     feature_by_tool,
     feature_by_type,
 )
-from aicad.core.schema_validation import check_json_schema, validate_json_arguments
-from aicad.core.tool_registry import (
+from talos.core.schema_validation import check_json_schema, validate_json_arguments
+from talos.core.tool_registry import (
     ToolInputError,
     ToolRisk,
     build_default_registry,

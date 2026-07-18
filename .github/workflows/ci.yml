@@ -33,17 +33,17 @@ jobs:
       - name: Check core types
         run: >-
           python -m mypy
-          src/aicad/core/inspection.py
-          src/aicad/core/schema_validation.py
-          src/aicad/core/tool_registry.py
-          src/aicad/core/transactions.py
+          src/talos/core/inspection.py
+          src/talos/core/schema_validation.py
+          src/talos/core/tool_registry.py
+          src/talos/core/transactions.py
 
       - name: Test neutral core with coverage gate
         run: >-
           python -m pytest
           -p no:cacheprovider
-          --cov=aicad.core
-          --cov=aicad.bridge
-          --cov=aicad.audit
-          --cov=aicad.orchestration
+          --cov=talos.core
+          --cov=talos.bridge
+          --cov=talos.audit
+          --cov=talos.orchestration
           --cov-fail-under=80

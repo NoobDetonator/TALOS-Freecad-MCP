@@ -23,13 +23,13 @@ Feche o FreeCAD e execute:
 ```powershell
 $project = (Resolve-Path .).Path
 $modRoot = Join-Path $env:APPDATA "FreeCAD\v1-1\Mod"
-$workbench = Join-Path $modRoot "AiCad"
+$workbench = Join-Path $modRoot "Talos"
 New-Item -ItemType Directory -Force -Path $modRoot | Out-Null
 New-Item -ItemType Junction -Path $workbench `
-  -Target (Join-Path $project "src\freecad\AiCad")
+  -Target (Join-Path $project "src\freecad\Talos")
 ```
 
-Se `AiCad` já existir, confira seu destino antes de remover ou substituir.
+Se `Talos` já existir, confira seu destino antes de remover ou substituir.
 
 ## 3. Abrir
 
@@ -47,13 +47,13 @@ reversíveis continuam exigindo confirmação manual.
 
 O junction aponta para o checkout atual. Depois de atualizar o Git, reinicie o
 FreeCAD para carregar o novo código. Para remover a integração, feche o FreeCAD
-e remova somente `%APPDATA%\FreeCAD\v1-1\Mod\AiCad`.
+e remova somente `%APPDATA%\FreeCAD\v1-1\Mod\Talos`.
 
 ## Diagnóstico
 
 | Problema | Verificação |
 | --- | --- |
 | Workbench não aparece | conferir o junction e `InitGui.py` |
-| Falha ao importar `aicad` | recriar a `.venv` com Python 3.11 e reinstalar o projeto |
+| Falha ao importar `talos` | recriar a `.venv` com Python 3.11 e reinstalar o projeto |
 | Ponte indisponível | ativar o Workbench **TALOS MCP** e manter o FreeCAD aberto |
 | Dependência ausente | repetir a instalação editável na `.venv` |

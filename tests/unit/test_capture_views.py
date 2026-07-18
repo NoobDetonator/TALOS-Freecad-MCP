@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from aicad.adapters.freecad.context import ContextReadsMixin
-from aicad.core.tool_registry import ToolInputError, build_default_registry
+from talos.adapters.freecad.context import ContextReadsMixin
+from talos.core.tool_registry import ToolInputError, build_default_registry
 
 
 class FakeActiveView:
@@ -89,7 +89,7 @@ def test_capture_views_are_independent_and_restore_camera(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("AICAD_VISUAL_CACHE", str(tmp_path))
+    monkeypatch.setenv("TALOS_VISUAL_CACHE", str(tmp_path))
     view = FakeActiveView()
     install_fake_gui(monkeypatch, view)
 
@@ -117,7 +117,7 @@ def test_single_capture_now_restores_camera(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("AICAD_VISUAL_CACHE", str(tmp_path))
+    monkeypatch.setenv("TALOS_VISUAL_CACHE", str(tmp_path))
     view = FakeActiveView()
     install_fake_gui(monkeypatch, view)
 
@@ -133,7 +133,7 @@ def test_capture_batch_failure_removes_partial_images_and_restores_camera(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("AICAD_VISUAL_CACHE", str(tmp_path))
+    monkeypatch.setenv("TALOS_VISUAL_CACHE", str(tmp_path))
     view = FakeActiveView(fail_after=1)
     install_fake_gui(monkeypatch, view)
 
@@ -385,7 +385,7 @@ def test_section_capture_applies_plane_and_restores_clipping(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("AICAD_VISUAL_CACHE", str(tmp_path))
+    monkeypatch.setenv("TALOS_VISUAL_CACHE", str(tmp_path))
     view = FakeActiveView()
     install_fake_gui(monkeypatch, view)
     context = ContextReadsMixin()
@@ -418,7 +418,7 @@ def test_section_capture_failure_removes_temporary_clipping(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("AICAD_VISUAL_CACHE", str(tmp_path))
+    monkeypatch.setenv("TALOS_VISUAL_CACHE", str(tmp_path))
     view = FakeActiveView(fail_after=0)
     install_fake_gui(monkeypatch, view)
     context = ContextReadsMixin()
@@ -442,7 +442,7 @@ def test_section_capture_restore_failure_discards_image(
                 raise RuntimeError("Synthetic clipping restore failure.")
             super().toggleClippingPlane(*arguments)
 
-    monkeypatch.setenv("AICAD_VISUAL_CACHE", str(tmp_path))
+    monkeypatch.setenv("TALOS_VISUAL_CACHE", str(tmp_path))
     view = FailingRestoreView()
     install_fake_gui(monkeypatch, view)
     context = ContextReadsMixin()
@@ -458,7 +458,7 @@ def test_section_capture_refuses_existing_clipping_plane(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("AICAD_VISUAL_CACHE", str(tmp_path))
+    monkeypatch.setenv("TALOS_VISUAL_CACHE", str(tmp_path))
     view = FakeActiveView()
     view.clipping_plane = True
     install_fake_gui(monkeypatch, view)

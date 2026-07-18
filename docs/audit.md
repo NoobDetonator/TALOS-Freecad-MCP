@@ -23,10 +23,10 @@ falha de auditoria impede que uma ação nova seja aceita silenciosamente.
 Por padrão, os registros ficam na pasta de dados do usuário:
 
 ```text
-ai-cad-workbench/audit/v1/<session_id>/<action_id>.json
+talos-freecad-mcp/audit/v1/<session_id>/<action_id>.json
 ```
 
-`AICAD_AUDIT_DIR` permite outro diretório para teste ou instalação administrada.
+`TALOS_AUDIT_DIR` permite outro diretório para teste ou instalação administrada.
 O caminho não deve ficar dentro do repositório. Escritas são atômicas, arquivos
 simbólicos são recusados e permissões ficam limitadas ao usuário.
 

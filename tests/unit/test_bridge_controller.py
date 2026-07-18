@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aicad.ui.bridge_controller import GuiBridgeController
+from talos.ui.bridge_controller import GuiBridgeController
 
 
 class ReentrantDispatcher:

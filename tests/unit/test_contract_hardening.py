@@ -4,16 +4,16 @@ from uuid import uuid4
 
 import pytest
 
-from aicad import mcp_server
-from aicad.bridge.dispatcher import BridgeDispatcher
-from aicad.core.tool_registry import (
+from talos import mcp_server
+from talos.bridge.dispatcher import BridgeDispatcher
+from talos.core.tool_registry import (
     ToolInputError,
     ToolRegistry,
     ToolRisk,
     ToolSpec,
     build_default_registry,
 )
-from aicad.core.transactions import (
+from talos.core.transactions import (
     CadTransactionOutcome,
     mark_transaction,
     transaction_trace,

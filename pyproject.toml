@@ -27,19 +27,17 @@ dev = [
 ]
 
 [project.scripts]
-aicad-mcp = "aicad.mcp_server:main"
-
-talos-freecad-mcp = "aicad.mcp_server:main"
+talos-freecad-mcp = "talos.mcp_server:main"
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["aicad*"]
+include = ["talos*"]
 
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests/unit"]
 
 [tool.coverage.run]
-source = ["aicad"]
+source = ["talos"]
 
 [tool.ruff]
 target-version = "py311"
@@ -50,7 +48,7 @@ select = ["E4", "E7", "E9", "F"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/freecad*.py" = ["E402"]
-"src/freecad/AiCad/InitGui.py" = ["F821"]
+"src/freecad/Talos/InitGui.py" = ["F821"]
 
 [tool.mypy]
 python_version = "3.11"

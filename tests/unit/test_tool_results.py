@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from aicad.core.tool_results import (
+from talos.core.tool_results import (
     AffectedObjects,
     ToolError,
     ToolErrorCategory,

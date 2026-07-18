@@ -1,7 +1,7 @@
 import pytest
 
-from aicad.adapters.freecad_adapter import FreeCadAdapter
-from aicad.core.tool_registry import ToolInputError, ToolRisk, build_default_registry
+from talos.adapters.freecad_adapter import FreeCadAdapter
+from talos.core.tool_registry import ToolInputError, ToolRisk, build_default_registry
 
 
 ASSEMBLY_TOOLS = (

@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from aicad.adapters.freecad_adapter import FreeCadAdapter
-from aicad.core.tool_registry import (
+from talos.adapters.freecad_adapter import FreeCadAdapter
+from talos.core.tool_registry import (
     ToolConfirmationRequired,
     ToolInputError,
     ToolRisk,

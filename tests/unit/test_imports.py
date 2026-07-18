@@ -5,19 +5,19 @@ from types import SimpleNamespace
 
 
 def test_freecad_facing_modules_import_without_freecad_installed() -> None:
-    import_module("aicad.adapters.freecad_adapter")
-    import_module("aicad.runtime")
-    import_module("aicad.ui.talos_panel")
-    import_module("aicad.orchestration")
-    import_module("aicad.orchestration.plans")
-    import_module("aicad.orchestration.plan_service")
-    import_module("aicad.orchestration.recipes")
-    import_module("aicad.core.tool_results")
-    import_module("aicad.core.context")
-    import_module("aicad.core.mechanical_tools")
-    import_module("aicad.core.tool_selector")
-    import_module("aicad.core.visual_cache")
-    import_module("aicad.evaluation.benchmark")
+    import_module("talos.adapters.freecad_adapter")
+    import_module("talos.runtime")
+    import_module("talos.ui.talos_panel")
+    import_module("talos.orchestration")
+    import_module("talos.orchestration.plans")
+    import_module("talos.orchestration.plan_service")
+    import_module("talos.orchestration.recipes")
+    import_module("talos.core.tool_results")
+    import_module("talos.core.context")
+    import_module("talos.core.mechanical_tools")
+    import_module("talos.core.tool_selector")
+    import_module("talos.core.visual_cache")
+    import_module("talos.evaluation.benchmark")
 
 
 def test_freecad_workbench_registration_is_idempotent(monkeypatch) -> None:
@@ -34,9 +34,9 @@ def test_freecad_workbench_registration_is_idempotent(monkeypatch) -> None:
         listWorkbenches=lambda: dict(workbenches),
     )
     monkeypatch.setitem(__import__("sys").modules, "FreeCADGui", freecad_gui)
-    init_gui = Path(__file__).resolve().parents[2] / "src" / "freecad" / "AiCad" / "InitGui.py"
+    init_gui = Path(__file__).resolve().parents[2] / "src" / "freecad" / "Talos" / "InitGui.py"
 
     for _ in range(2):
         runpy.run_path(str(init_gui), init_globals={"Workbench": object})
 
-    assert list(workbenches) == ["AICadWorkbench"]
+    assert list(workbenches) == ["TalosWorkbench"]

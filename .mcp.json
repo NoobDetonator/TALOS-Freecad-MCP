@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "talos": {
-      "command": ".venv\\Scripts\\aicad-mcp.exe",
+      "command": ".venv\\Scripts\\talos-freecad-mcp.exe",
       "args": []
     }
   }

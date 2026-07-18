@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package format="1">
+  <name>TALOS FreeCAD MCP</name>
+  <description>Safe FreeCAD MCP bridge for structured external CAD agents.</description>
+  <version>0.2.0</version>
+  <maintainer email="">TALOS</maintainer>
+  <license file="">Private development</license>
+  <url type="repository" branch="main">https://github.com/NoobDetonator/TALOS-Freecad-MCP</url>
+  <content>
+    <workbench>
+      <classname>TalosWorkbench</classname>
+      <subdirectory>./</subdirectory>
+    </workbench>
+  </content>
+</package>

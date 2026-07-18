@@ -12,17 +12,17 @@ project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root / ".venv" / "Lib" / "site-packages"))
 sys.path.insert(0, str(project_root / "src"))
 
-from aicad.bridge.protocol import BridgeRequest, BridgeResponseStatus
-from aicad.bridge.session import default_session_store
-from aicad.bridge.transport import TcpBridgeClient
+from talos.bridge.protocol import BridgeRequest, BridgeResponseStatus
+from talos.bridge.session import default_session_store
+from talos.bridge.transport import TcpBridgeClient
 
 import FreeCAD as App
 import FreeCADGui as Gui
 from PySide import QtCore, QtWidgets
 
 
-result_path = Path(os.environ["AICAD_FOUNDATION_VISUAL_RESULT"])
-screenshot_path = Path(os.environ["AICAD_FOUNDATION_VISUAL_SCREENSHOT"])
+result_path = Path(os.environ["TALOS_FOUNDATION_VISUAL_RESULT"])
+screenshot_path = Path(os.environ["TALOS_FOUNDATION_VISUAL_SCREENSHOT"])
 
 
 def wait_for_ui(predicate, timeout: float = 12.0) -> None:
@@ -71,13 +71,13 @@ def inspect() -> None:
         for document_name in list(App.listDocuments()):
             App.closeDocument(document_name)
 
-        Gui.activateWorkbench("AICadWorkbench")
+        Gui.activateWorkbench("TalosWorkbench")
         QtWidgets.QApplication.processEvents()
         main_window = Gui.getMainWindow()
-        dock = main_window.findChild(QtWidgets.QDockWidget, "AICadChatDock")
+        dock = main_window.findChild(QtWidgets.QDockWidget, "TalosChatDock")
         assert dock is not None and dock.isVisible()
-        automatic = dock.findChild(QtWidgets.QCheckBox, "AICadQuickTestMode")
-        history = dock.findChild(QtWidgets.QTextBrowser, "AICadHistory")
+        automatic = dock.findChild(QtWidgets.QCheckBox, "TalosQuickTestMode")
+        history = dock.findChild(QtWidgets.QTextBrowser, "TalosHistory")
         assert automatic is not None and automatic.isChecked()
         assert history is not None
 

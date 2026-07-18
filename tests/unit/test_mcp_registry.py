@@ -2,17 +2,17 @@ import asyncio
 
 import pytest
 
-from aicad import mcp_server
-from aicad.bridge.dispatcher import GUI_REQUEST_TIMEOUT_SECONDS
-from aicad.bridge.protocol import (
+from talos import mcp_server
+from talos.bridge.dispatcher import GUI_REQUEST_TIMEOUT_SECONDS
+from talos.bridge.protocol import (
     BridgeError,
     BridgeErrorCode,
     BridgeResponse,
     BridgeResponseStatus,
 )
-from aicad.bridge.session import BridgeSessionError
-from aicad.bridge.transport import BridgeTransportError
-from aicad.mcp_server import (
+from talos.bridge.session import BridgeSessionError
+from talos.bridge.transport import BridgeTransportError
+from talos.mcp_server import (
     available_cad_tools,
     describe_cad_capabilities,
     execute_cad_read_tool,
@@ -20,7 +20,7 @@ from aicad.mcp_server import (
     search_cad_capabilities,
     tool_registry,
 )
-from aicad.runtime import get_tool_registry
+from talos.runtime import get_tool_registry
 
 
 def test_bridge_client_outwaits_the_gui_dispatcher() -> None:
@@ -185,7 +185,7 @@ def test_ambiguous_transport_failure_does_not_claim_safe_state(
 
 
 def test_methodology_prompt_covers_the_professional_workflow() -> None:
-    from aicad.mcp_server import PART_DESIGN_METHODOLOGY
+    from talos.mcp_server import PART_DESIGN_METHODOLOGY
 
     text = PART_DESIGN_METHODOLOGY
     for stage_tool in (

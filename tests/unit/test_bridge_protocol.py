@@ -3,7 +3,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from aicad.bridge.protocol import (
+from talos.bridge.protocol import (
     PROTOCOL_VERSION,
     BridgeError,
     BridgeErrorCode,
@@ -13,8 +13,8 @@ from aicad.bridge.protocol import (
     BridgeResponseStatus,
     validate_request_payload,
 )
-from aicad.core.tool_registry import build_default_registry
-from aicad.core.tool_results import ToolErrorCategory, ToolRecoveryActionType
+from talos.core.tool_registry import build_default_registry
+from talos.core.tool_results import ToolErrorCategory, ToolRecoveryActionType
 
 
 REQUEST_ID = "12345678-1234-5678-9234-567812345678"

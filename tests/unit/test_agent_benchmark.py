@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from aicad.evaluation.benchmark import (
+from talos.evaluation.benchmark import (
     load_corpus,
     run_tool_retrieval_benchmark,
 )
