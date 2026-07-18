@@ -12,9 +12,10 @@ from aicad.core.tool_registry import ToolRisk, ToolSpec
 
 
 GEOMETRY_INDEX = {"type": "integer", "minimum": 0, "maximum": 4095}
-# Constraint endpoints also accept -1: the sketch origin point (position
-# "start"), required to fully anchor a profile without construction geometry.
-ANCHOR_GEOMETRY_INDEX = {"type": "integer", "minimum": -1, "maximum": 4095}
+# Constraint endpoints also accept the Sketcher datums: -1 is the X axis
+# (whose start point is the sketch origin) and -2 the Y axis. They are
+# required to fully anchor a profile without construction geometry.
+ANCHOR_GEOMETRY_INDEX = {"type": "integer", "minimum": -2, "maximum": 4095}
 CONSTRAINT_INDEX = {"type": "integer", "minimum": 0, "maximum": 8191}
 POINT_POSITION = {"type": "string", "enum": ["start", "end", "center"]}
 INDEX_LIST = {

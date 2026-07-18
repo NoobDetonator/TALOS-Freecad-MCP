@@ -41,11 +41,16 @@ class SketchMixin:
 
     @classmethod
     def _anchor_geometry_index(cls, sketch: Any, index: int) -> int:
-        """Resolve a constraint endpoint; -1 addresses the sketch origin point."""
+        """Resolve a constraint endpoint against geometry or sketch datums.
+
+        Sketcher reserves -1 for the X axis (whose start point is the sketch
+        origin) and -2 for the Y axis; external geometry starts at -3 and is
+        deliberately not published.
+        """
 
         checked = int(index)
-        if not isinstance(index, bool) and checked == index and checked == -1:
-            return -1
+        if not isinstance(index, bool) and checked == index and checked in (-1, -2):
+            return checked
         return cls._geometry_index(sketch, index)
 
     @classmethod

@@ -120,13 +120,25 @@ def test_constraint_contracts_accept_the_sketch_origin_anchor() -> None:
     )
     assert measured["geometry"] == -1
 
-    with pytest.raises(ToolInputError, match="at least -1"):
+    on_axis = registry.validate_arguments(
+        "cad.add_sketch_geometric_constraint",
+        {
+            "sketch": "Base",
+            "constraint_type": "point_on_object",
+            "first_geometry": 0,
+            "first_position": "center",
+            "second_geometry": -1,
+        },
+    )
+    assert on_axis["second_geometry"] == -1
+
+    with pytest.raises(ToolInputError, match="at least -2"):
         registry.validate_arguments(
             "cad.add_sketch_geometric_constraint",
             {
                 "sketch": "Base",
                 "constraint_type": "coincident",
-                "first_geometry": -2,
+                "first_geometry": -3,
                 "first_position": "start",
                 "second_geometry": 0,
                 "second_position": "start",

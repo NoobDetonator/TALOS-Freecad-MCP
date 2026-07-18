@@ -27,17 +27,20 @@ class SketchConstraintMixin:
             "tangent": "Tangent",
             "equal": "Equal",
         }
-        if first < 0 and checked_type not in {"coincident", "concentric"}:
+        if first < 0:
             raise ValueError(
-                "The sketch origin point only supports coincident and "
-                "concentric constraints."
+                "The sketch datums are only valid as the second geometry."
             )
         if checked_type in unary:
             constraint = sketcher.Constraint(unary[checked_type], first)
         elif checked_type in binary:
             if second_geometry is None:
                 raise ValueError(f"{checked_type} requires second_geometry.")
-            second = self._geometry_index(target, second_geometry)
+            second = self._anchor_geometry_index(target, second_geometry)
+            if second < 0 and checked_type == "equal":
+                raise ValueError(
+                    "Equal cannot reference a sketch axis."
+                )
             if second == first:
                 raise ValueError("A binary sketch constraint requires two geometries.")
             constraint = sketcher.Constraint(binary[checked_type], first, second)
@@ -47,6 +50,10 @@ class SketchConstraintMixin:
                     "Coincident requires second_geometry and both point positions."
                 )
             second = self._anchor_geometry_index(target, second_geometry)
+            if second == -2:
+                raise ValueError(
+                    "Coincident with the origin uses -1; axes use point_on_object."
+                )
             if second == first:
                 raise ValueError("A binary sketch constraint requires two geometries.")
             constraint = sketcher.Constraint(
@@ -60,6 +67,10 @@ class SketchConstraintMixin:
             if second_geometry is None:
                 raise ValueError("Concentric requires second_geometry.")
             second = self._anchor_geometry_index(target, second_geometry)
+            if second == -2:
+                raise ValueError(
+                    "Concentric with the origin uses -1."
+                )
             if second == first:
                 raise ValueError("A binary sketch constraint requires two geometries.")
             constraint = sketcher.Constraint(
@@ -74,7 +85,7 @@ class SketchConstraintMixin:
                 raise ValueError(
                     "Point-on-object requires second_geometry and first_position."
                 )
-            second = self._geometry_index(target, second_geometry)
+            second = self._anchor_geometry_index(target, second_geometry)
             constraint = sketcher.Constraint(
                 "PointOnObject",
                 first,
@@ -113,7 +124,11 @@ class SketchConstraintMixin:
         target = self._sketch_or_error(sketch)
         first = self._anchor_geometry_index(target, geometry)
         checked_type = str(constraint_type).strip().lower()
-        if first < 0 and checked_type not in {"distance", "distance_x", "distance_y"}:
+        if first == -2:
+            raise ValueError(
+                "The sketch axes are not valid in dimensional constraints."
+            )
+        if first == -1 and checked_type not in {"distance", "distance_x", "distance_y"}:
             raise ValueError(
                 "The sketch origin point only supports distance dimensions."
             )
@@ -151,6 +166,10 @@ class SketchConstraintMixin:
                         f"{checked_type} between points requires second_position."
                     )
                 second = self._anchor_geometry_index(target, second_geometry)
+                if second == -2:
+                    raise ValueError(
+                        "The sketch axes are not valid in dimensional constraints."
+                    )
                 if second == first:
                     raise ValueError(
                         "A distance between points requires two geometries."

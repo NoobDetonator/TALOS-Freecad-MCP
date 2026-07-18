@@ -416,6 +416,56 @@ modify(
 )
 anchored_status = read("cad.get_sketch_status", {"sketch": "ParamBase"})
 assert anchored_status["fully_constrained"] is True, anchored_status
+
+# Sonda dos eixos como datum (-2): circulo tipo furo-de-flange fecha em 0 DoF
+# com raio + distancia da origem + centro apoiado no eixo X.
+modify(
+    "cad.create_body_sketch",
+    {"body": "ParamBody", "plane": "xy", "name": "AnchorProbe"},
+)
+modify(
+    "cad.add_sketch_circle",
+    {"sketch": "AnchorProbe", "center_x": 10, "center_y": 5, "radius": 4},
+)
+modify(
+    "cad.add_sketch_dimensional_constraint",
+    {
+        "sketch": "AnchorProbe",
+        "constraint_type": "radius",
+        "geometry": 0,
+        "value": 4,
+    },
+)
+modify(
+    "cad.add_sketch_dimensional_constraint",
+    {
+        "sketch": "AnchorProbe",
+        "constraint_type": "distance",
+        "geometry": -1,
+        "position": "start",
+        "second_geometry": 0,
+        "second_position": "center",
+        "value": 12,
+    },
+)
+modify(
+    "cad.add_sketch_geometric_constraint",
+    {
+        "sketch": "AnchorProbe",
+        "constraint_type": "point_on_object",
+        "first_geometry": 0,
+        "first_position": "center",
+        "second_geometry": -1,
+    },
+)
+probe_status = read("cad.get_sketch_status", {"sketch": "AnchorProbe"})
+assert probe_status["fully_constrained"] is True, probe_status
+# O centro tem que pousar no eixo X em (12, 0): prova que -1 e o eixo X,
+# nao o Y, e que a distancia radial usou a origem.
+probe_info = read("cad.get_sketch_info", {"sketch": "AnchorProbe"})
+probe_center = probe_info["geometry"][0]["center_mm"]
+assert close(12, probe_center[0], 1e-6), probe_center
+assert abs(probe_center[1]) < 1e-6, probe_center
 try:
     modify(
         "cad.add_sketch_geometric_constraint",

@@ -179,11 +179,20 @@ junto com o CAD-IR completo (E1.3), se a prática mostrar necessidade.
   de parâmetro recalculando a árvore inteira com volume exato. Massa e
   prontidão de impressão verificadas pelas ferramentas do P5. Baseline de
   telemetria versionada em `benchmarks/mcp-baseline-placa-canonica-v1.json`;
-- desbloqueio no caminho: restrições agora aceitam `-1` como âncora na
-  origem do sketch (coincident/concentric e cotas de distância) — sem isso,
-  0 DoF era inalcançável pelo contrato publicado;
-- pendentes: case com tampa, suporte, flange e estágio planetário como
-  Bodies paramétricos;
+- ✅ **Flange paramétrica** (47 mutações, 11 leituras): disco, cubo e furo
+  central concêntricos na origem, círculo de parafusos com centro apoiado no
+  eixo X, seis furos por `PartDesign::PolarPattern` com `occurrences`
+  vinculado a um parâmetro de contagem — `n_furos` 6→8 recontou o padrão com
+  volume exato, e `espessura_flange` 10→12 recalculou disco, cubo e furos.
+  Baseline em `benchmarks/mcp-baseline-flange-canonica-v1.json`;
+- desbloqueios no caminho: restrições aceitam os datums do Sketcher como
+  segunda geometria (`-1` = eixo X, cujo ponto inicial é a origem; `-2` =
+  eixo Y; geometria externa continua fora do contrato) — sem isso, 0 DoF era
+  inalcançável pelo contrato publicado. A convenção real do Sketcher
+  (`-1`/`-2` são os eixos, `-3` em diante é geometria externa) está provada
+  por sonda de posição no smoke;
+- pendentes: case com tampa, suporte e estágio planetário como Bodies
+  paramétricos;
 - benchmark com agente real (não seletor lexical): mesmas tarefas no TALOS e
   no freecad-mcp clonado, medindo turnos, tokens, taxa de sucesso e os seis
   critérios de qualidade;
