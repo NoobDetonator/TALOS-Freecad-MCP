@@ -210,7 +210,17 @@ junto com o CAD-IR completo (E1.3), se a prática mostrar necessidade.
   quando desalinhada 2 mm de propósito, e `parede` 2,4→3 recalcula os dois
   corpos mantendo o encaixe. Baseline em
   `benchmarks/mcp-baseline-case-canonico-v1.json`;
-- pendente: estágio planetário como Bodies paramétricos;
+- ✅ **Estágio planetário 60/20/20** (11 mutações, 9 leituras): sol fase 0,
+  planetas fase 9° em ±30 mm, coroa interna fase 0 e backlash 0,15 no sol e
+  planetas — fases provadas por sonda headless antes da sessão viva
+  (coroa em fase 3° colidiria 99,8 mm³). Os seis pares analisados fecham em
+  zero interferências, reproduzindo via MCP o exemplo validado do README, e
+  o carrier entra por `cad.align_concentric` (base do sol, offset −5) sem
+  colisão nos dez pares. Estágio completo: 68,7 g em PLA. Baseline em
+  `benchmarks/mcp-baseline-planetario-canonico-v1.json`;
+- os cinco canônicos do plano estão provados; falta o benchmark comparativo
+  contra o freecad-mcp clonado (turnos, tokens, taxa de sucesso e os seis
+  critérios de qualidade);
 - benchmark com agente real (não seletor lexical): mesmas tarefas no TALOS e
   no freecad-mcp clonado, medindo turnos, tokens, taxa de sucesso e os seis
   critérios de qualidade;
